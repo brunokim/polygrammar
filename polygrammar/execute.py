@@ -152,7 +152,7 @@ class Parser:
 class State:
     offset: int = field(validator=instance_of(int), default=0)
     results: list[Any] = field(factory=list)
-    blocked = field()
+    blocked: list = field(factory=list)
 
 
 @frozen
