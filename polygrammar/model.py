@@ -1,6 +1,4 @@
-import re
-
-from attrs import define, field, frozen
+from attrs import field, frozen
 from attrs.validators import (
     and_,
     deep_iterable,

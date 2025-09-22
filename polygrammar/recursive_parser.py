@@ -1,58 +1,12 @@
-from collections import defaultdict
 from textwrap import dedent
 from typing import Any
 
 from attrs import define, evolve, field, frozen
-from attrs.validators import deep_iterable, instance_of, optional
+from attrs.validators import instance_of
 
 from polygrammar.model import *
 
 __all__ = ["Parser", "ParseError"]
-
-
-def optimize_alt(alt):
-    # Transform Alt to Charset, if possible.
-    chars, exprs2 = [], []
-    for expr in alt.exprs:
-        if isinstance(expr, String) and len(expr.value) == 1:
-            chars.append(Char(expr.value))
-        elif isinstance(expr, Charset):
-            chars.extend(expr.groups)
-        else:
-            exprs2.append(expr)
-    if len(chars) > 1:
-        exprs = [Charset(chars)] + exprs2
-
-
-def optimize_charset(charset):
-    # Merge ranges and chars.
-    ranges = []
-    for g in charset.groups:
-        if isinstance(g, CharRange):
-            ranges.append((g.start.char, g.end.char))
-        elif isinstance(g, Char):
-            ranges.append((g.char, g.char))
-    ranges.sort()
-    merged = []
-    for start, end in ranges:
-        if not merged:
-            merged.append((start, end))
-            continue
-        last_start, last_end = merged[-1]
-        if ord(start) <= ord(last_end) + 1:
-            merged[-1] = (last_start, max(last_end, end))
-        else:
-            merged.append((start, end))
-
-    groups = []
-    for start, end in merged:
-        if start == end:
-            groups.append(Char(start))
-        elif ord(start) + 1 == ord(end):
-            groups.append(Char(start))
-            groups.append(Char(end))
-        else:
-            groups.append(CharRange(Char(start), Char(end)))
 
 
 @define

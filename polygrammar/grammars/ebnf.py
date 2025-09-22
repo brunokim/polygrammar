@@ -1,6 +1,3 @@
-import inspect
-import re
-
 from multimethod import multimethod
 
 from polygrammar.grammars.escapes import (
