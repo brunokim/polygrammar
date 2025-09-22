@@ -152,16 +152,12 @@ class Parser:
 class State:
     offset: int = field(validator=instance_of(int), default=0)
     results: list[Any] = field(factory=list)
-    blocked: list = field(factory=list)
 
 
 @frozen
 class ParseJob:
     parser: Parser = field(validator=instance_of(Parser))
     text: str = field(validator=instance_of(str))
-
-    _table: dict = field(init=False, factory=dict)
-    _blocked: dict = field(init=False, factory=lambda: defaultdict(list))
 
     def parse(self, start, offset):
         initial_state = State(offset=offset)
@@ -174,24 +170,6 @@ class ParseJob:
         return error
 
     def _parse_symbol(self, state, name, is_ignored=False, is_token=False):
-        key = (state.offset, name, is_ignored, is_token)
-        if key in self._table:
-            yield State(offset, blocked=key)
-            return
-
-        self._table[key] = []
-        for st in self._parse_symbol0(state, name, is_ignored, is_token):
-            self._table[key].append(st)
-            yield st
-
-        for cont in self._blocked[key]:
-            for st in self._table[key]:
-                yield from cont(st)
-
-        del self._table[key]
-        del self._blocked[key]
-
-    def _parse_symbol0(self, state, name, is_ignored=False, is_token=False):
         expr = self.parser.grammar.get_rule(name)
 
         if is_ignored or name[0] == "_":
@@ -201,19 +179,17 @@ class ParseJob:
         results = state.results
         is_token = is_token or name[0].isupper()
         for st in self._parse_expr(evolve(state, results=[]), expr, is_token=is_token):
-            def cont(st):
-                args = st.results
-                if is_token:
-                    result = "".join(args)
-                    if visit_token := self.parser._method_map.get(name):
-                        result = visit_token(result)
-                elif method := self.parser._method_map.get(name):
-                    result = method(*args)
-                else:
-                    result = self.parser.visitor.visit(name, *args)
+            args = st.results
+            if is_token:
+                result = "".join(args)
+                if visit_token := self.parser._method_map.get(name):
+                    result = visit_token(result)
+            elif method := self.parser._method_map.get(name):
+                result = method(*args)
+            else:
+                result = self.parser.visitor.visit(name, *args)
 
-                yield evolve(st, results=results + [result])
-            yield from cont(st)
+            yield evolve(st, results=results + [result])
 
     def _parse_expr(self, state, expr, **kwargs):
         match expr:
@@ -244,9 +220,7 @@ class ParseJob:
             return
         expr, *exprs = exprs
         for st in self._parse_expr(state, expr, **kwargs):
-            def cont(st):
-                yield from self._parse_cat(st, exprs, **kwargs)
-            yield from cont(st)
+            yield from self._parse_cat(st, exprs, **kwargs)
 
     def _parse_repeat(self, state, expr, min, max, **kwargs):
         def dec(x):
@@ -258,9 +232,7 @@ class ParseJob:
 
         if max is None or max > 0:
             for st in self._parse_expr(state, expr, **kwargs):
-                def cont(st):
-                    yield from self._parse_repeat(st, expr, dec(min), dec(max), **kwargs)
-                yield from cont(st)
+                yield from self._parse_repeat(st, expr, dec(min), dec(max), **kwargs)
         if min == 0:
             yield state
 
@@ -305,13 +277,11 @@ class ParseJob:
 
     def _parse_charset_diff(self, state, base, diff, **kwargs):
         for st in self._parse_expr(state, base, **kwargs):
-            def cont(st):
-                # Char matches base, so exclude if matches diff.
-                try:
-                    next(self._parse_expr(state, diff, **kwargs))
-                except StopIteration:
-                    yield st
-            yield from cont(st)
+            # Char matches base, so exclude if matches diff.
+            try:
+                next(self._parse_expr(state, diff, **kwargs))
+            except StopIteration:
+                yield st
 
 
 if __name__ == "__main__":
