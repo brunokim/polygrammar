@@ -1,0 +1,7 @@
+bin/
+obj/
+
+.*.swo
+.*.swp
+
+__pycache__/
