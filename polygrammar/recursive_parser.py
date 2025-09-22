@@ -2,11 +2,10 @@ from collections import defaultdict
 from textwrap import dedent
 from typing import Any
 
-from attrs import define, field, frozen, evolve
-from attrs.validators import instance_of, optional, deep_iterable
+from attrs import define, evolve, field, frozen
+from attrs.validators import deep_iterable, instance_of, optional
 
 from polygrammar.model import *
-
 
 __all__ = ["Parser", "ParseError"]
 

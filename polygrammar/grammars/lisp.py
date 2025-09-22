@@ -1,15 +1,14 @@
 import attrs
 from multimethod import multimethod
 
-from polygrammar.model import *
-from polygrammar.recursive_parser import Parser
 from polygrammar.grammars.escapes import (
+    SLASH_ESCAPES,
     make_escapes_pattern,
     replace_escapes,
     reverse_escapes,
-    SLASH_ESCAPES,
 )
-
+from polygrammar.model import *
+from polygrammar.recursive_parser import Parser
 
 __all__ = ["parse_lisp", "PARSER", "LISP_GRAMMAR", "LispVisitor"]
 

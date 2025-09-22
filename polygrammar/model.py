@@ -1,13 +1,14 @@
 import re
-from attrs import define, frozen, field
+
+from attrs import define, field, frozen
 from attrs.validators import (
-    instance_of,
-    deep_iterable,
-    matches_re,
-    min_len,
-    max_len,
-    ge,
     and_,
+    deep_iterable,
+    ge,
+    instance_of,
+    matches_re,
+    max_len,
+    min_len,
     optional,
 )
 
