@@ -11,10 +11,24 @@ from attrs.validators import (
     optional,
 )
 
-
-@frozen
-class Expr:
-    pass
+__all__ = [
+    "Expr",
+    "Alt",
+    "Cat",
+    "Repeat",
+    "Optional",
+    "ZeroOrMore",
+    "OneOrMore",
+    "Symbol",
+    "String",
+    "Char",
+    "CharRange",
+    "Charset",
+    "CharsetDiff",
+    "Rule",
+    "Grammar",
+    "Visitor",
+]
 
 
 def to_string(x):
@@ -27,6 +41,11 @@ def to_char(x):
 
 def to_symbol(x):
     return Symbol(x) if isinstance(x, str) else x
+
+
+@frozen
+class Expr:
+    pass
 
 
 @frozen

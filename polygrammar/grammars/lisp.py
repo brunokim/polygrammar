@@ -1,23 +1,7 @@
 import attrs
 from multimethod import multimethod
 
-from polygrammar.model import (
-    Grammar,
-    Rule,
-    Alt,
-    Cat,
-    Symbol,
-    String,
-    Charset,
-    CharsetDiff,
-    Char,
-    CharRange,
-    ZeroOrMore,
-    OneOrMore,
-    Optional,
-    Repeat,
-    Visitor,
-)
+from polygrammar.model import *
 from polygrammar.recursive_parser import Parser
 from polygrammar.grammars.escapes import (
     make_escapes_pattern,

@@ -5,20 +5,7 @@ from typing import Any
 from attrs import define, field, frozen, evolve
 from attrs.validators import instance_of, optional, deep_iterable
 
-from polygrammar.model import (
-    Grammar,
-    Alt,
-    Cat,
-    Repeat,
-    Symbol,
-    String,
-    Charset,
-    CharsetDiff,
-    Char,
-    CharRange,
-    Repeat,
-    Visitor,
-)
+from polygrammar.model import *
 
 
 __all__ = ["Parser", "ParseError"]
