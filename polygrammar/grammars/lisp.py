@@ -1,7 +1,7 @@
 import attrs
 from multimethod import multimethod
 
-from myopic.model import (
+from polygrammar.model import (
     Grammar,
     Rule,
     Alt,
@@ -18,8 +18,8 @@ from myopic.model import (
     Repeat,
     Visitor,
 )
-from myopic.execute import Parser
-from myopic.grammars.escapes import (
+from polygrammar.execute import Parser
+from polygrammar.grammars.escapes import (
     make_escapes_pattern,
     replace_escapes,
     reverse_escapes,

@@ -5,7 +5,7 @@ from typing import Any
 from attrs import define, field, frozen, evolve
 from attrs.validators import instance_of, optional, deep_iterable
 
-from myopic.model import (
+from polygrammar.model import (
     Grammar,
     Alt,
     Cat,
