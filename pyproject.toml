@@ -10,7 +10,8 @@ requires-python = ">=3.11"
 dependencies = [
     "multimethod (>=2.0,<3.0)",
     "regex (>=2025.9.18,<2026.0.0)",
-    "attrs (>=25.3.0,<26.0.0)"
+    "attrs (>=25.3.0,<26.0.0)",
+    "prettyprinter (>=0.18.0,<0.19.0)"
 ]
 
 

@@ -18,7 +18,7 @@ from polygrammar.model import (
     Repeat,
     Visitor,
 )
-from polygrammar.execute import Parser
+from polygrammar.recursive_parser import Parser
 from polygrammar.grammars.escapes import (
     make_escapes_pattern,
     replace_escapes,
