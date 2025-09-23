@@ -63,23 +63,25 @@ class Parser:
         job = ParseJob(self, text)
         yield from job.parse(start, offset)
 
-        if job._num_solutions == 0:
-            if not debug:
-                raise ParseError(text, offset, "no match")
+        if job._num_solutions > 0:
+            return
 
-            # Redo parsing with a debug offset to get better error info.
-            job._debug_offset = job._max_offset
-            list(job.parse(start, offset))
-            excs = []
-            for msg, stack in job._debug_stacks:
-                context = " > ".join(f"{name}@{off}" for name, off in stack)
-                excs.append(ParseError(text, job._debug_offset, f"{msg} ({context})"))
-            raise ExceptionGroup("no match", excs)
+        if not debug:
+            raise ParseError(text, offset, "no match")
 
-    def full_parse(self, text, start=None):
+        # Redo parsing with a debug offset to get better error info.
+        job._debug_offset = job._max_offset
+        list(job.parse(start, offset))
+        excs = []
+        for msg, stack in job._debug_stacks:
+            context = " > ".join(f"{name}@{off}" for name, off in stack)
+            excs.append(ParseError(text, job._debug_offset, f"{msg} ({context})"))
+        raise ExceptionGroup("no match", excs)
+
+    def full_parse(self, text, start=None, debug=True):
         has_full_match = False
         max_error_offset = -1
-        for result, offset in self.parse(text, start):
+        for result, offset in self.parse(text, start, debug=debug):
             if offset == len(text):
                 has_full_match = True
                 yield result
@@ -89,11 +91,11 @@ class Parser:
         if not has_full_match:
             raise ParseError(text, max_error_offset, "trailing characters")
 
-    def first_parse(self, text, start=None, offset=0):
-        return next(self.parse(text, start, offset))
+    def first_parse(self, text, start=None, offset=0, debug=True):
+        return next(self.parse(text, start, offset, debug))
 
-    def first_full_parse(self, text, start=None):
-        return next(self.full_parse(text, start))
+    def first_full_parse(self, text, start=None, debug=True):
+        return next(self.full_parse(text, start, debug))
 
 
 @define

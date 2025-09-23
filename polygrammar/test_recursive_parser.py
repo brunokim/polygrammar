@@ -12,7 +12,7 @@ def test_parse_string():
     (got,) = parser.first_full_parse("A")
     assert got == ("s", "A")
     with pytest.raises(ParseError):
-        parser.first_full_parse("B")
+        parser.first_full_parse("B", debug=False)
 
 
 def test_parse_alt():
@@ -22,7 +22,7 @@ def test_parse_alt():
     (got,) = parser.first_full_parse("B")
     assert got == ("s", "B")
     with pytest.raises(ParseError):
-        parser.first_full_parse("C")
+        parser.first_full_parse("C", debug=False)
 
 
 def test_parse_cat():
@@ -30,7 +30,7 @@ def test_parse_cat():
     (got,) = parser.first_full_parse("AB")
     assert got == ("s", "A", "B")
     with pytest.raises(ParseError):
-        parser.first_full_parse("A")
+        parser.first_full_parse("A", debug=False)
 
 
 def test_parse_symbol():
@@ -44,7 +44,7 @@ def test_parse_symbol():
     (got,) = parser.first_full_parse("AAAA!")
     assert got == ("s", "A", ("s", "A", ("s", "A", ("s", "A", ("s", "!")))))
     with pytest.raises(ParseError):
-        parser.first_full_parse("A")
+        parser.first_full_parse("A", debug=False)
 
 
 @pytest.mark.parametrize(
@@ -77,7 +77,7 @@ def test_parse_charset_char():
     (got,) = parser.first_full_parse("c")
     assert got == ("s", "c")
     with pytest.raises(ParseError):
-        parser.first_full_parse("d")
+        parser.first_full_parse("d", debug=False)
 
 
 def test_parse_charset_range():
@@ -89,7 +89,7 @@ def test_parse_charset_range():
     (got,) = parser.first_full_parse("z")
     assert got == ("s", "z")
     with pytest.raises(ParseError):
-        parser.first_full_parse("A")
+        parser.first_full_parse("A", debug=False)
 
 
 def test_parse_charset_diff():
@@ -110,13 +110,13 @@ def test_parse_charset_diff():
     (got,) = parser.first_full_parse("v")
     assert got == ("s", "v")
     with pytest.raises(ParseError):
-        parser.first_full_parse("A")
+        parser.first_full_parse("A", debug=False)
     with pytest.raises(ParseError):
-        parser.first_full_parse("m")
+        parser.first_full_parse("m", debug=False)
     with pytest.raises(ParseError):
-        parser.first_full_parse("x")
+        parser.first_full_parse("x", debug=False)
     with pytest.raises(ParseError):
-        parser.first_full_parse("z")
+        parser.first_full_parse("z", debug=False)
 
 
 def test_parse_token():
