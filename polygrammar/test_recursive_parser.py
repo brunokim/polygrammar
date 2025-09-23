@@ -195,16 +195,6 @@ def test_ambiguous_parse():
             ),
         ),
         (
-            "BBBBB",
-            dedent(
-                """\
-                At 1:1 (0): no match
-                    BBBBB
-                    ^
-                """
-            ),
-        ),
-        (
             dedent(
                 """\
                 AAAAA
@@ -225,3 +215,28 @@ def test_parse_error(text, msg):
     parser = Parser(Grammar.create(s=OneOrMore(Alt.create("A", "\n"))))
     with pytest.raises(ParseError, match=f"^{re.escape(msg)}$"):
         parser.first_full_parse(text)
+
+
+def test_no_match():
+    parser = Parser(Grammar.create(s=OneOrMore(Alt.create("A", "\n"))))
+
+    msg1 = dedent(
+        """\
+        At 1:1 (0): string: 'B' != 'A' (symbol@0 > repeat@0 > alt@0 > string@0)
+            BBBB
+            ^
+        """
+    )
+    msg2 = dedent(
+        """\
+        At 1:1 (0): string: 'B' != '\\n' (symbol@0 > repeat@0 > alt@0 > string@0)
+            BBBB
+            ^
+        """
+    )
+    with pytest.RaisesGroup(
+        pytest.RaisesExc(ParseError, match=f"^{re.escape(msg1)}$"),
+        pytest.RaisesExc(ParseError, match=f"^{re.escape(msg2)}$"),
+        match="^no match$",
+    ):
+        parser.first_full_parse("BBBB")

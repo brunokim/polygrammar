@@ -1,3 +1,4 @@
+import inspect
 from textwrap import dedent
 from typing import Any
 
@@ -56,14 +57,24 @@ class Parser:
             if hasattr(self.visitor, method_name):
                 self._method_map[rule.name.name] = getattr(self.visitor, method_name)
 
-    def parse(self, text, start=None, offset=0):
+    def parse(self, text, start=None, offset=0, debug=True):
         if start is None:
             start = self.grammar.rules[0].name.name
         job = ParseJob(self, text)
         yield from job.parse(start, offset)
 
         if job._num_solutions == 0:
-            raise ParseError(text, offset, "no match")
+            if not debug:
+                raise ParseError(text, offset, "no match")
+
+            # Redo parsing with a debug offset to get better error info.
+            job._debug_offset = job._max_offset
+            list(job.parse(start, offset))
+            excs = []
+            for msg, stack in job._debug_stacks:
+                context = " > ".join(f"{name}@{off}" for name, off in stack)
+                excs.append(ParseError(text, job._debug_offset, f"{msg} ({context})"))
+            raise ExceptionGroup("no match", excs)
 
     def full_parse(self, text, start=None):
         has_full_match = False
@@ -98,6 +109,8 @@ class ParseJob:
 
     _num_solutions: int = field(init=False, default=0)
     _max_offset: int = field(init=False, default=0)
+    _debug_offset: int = field(init=False, default=-1)
+    _debug_stacks: list = field(init=False, factory=list)
 
     def parse(self, start, offset):
         self._num_solutions = 0
@@ -107,10 +120,21 @@ class ParseJob:
             self._num_solutions += 1
             yield state.results, state.offset
 
-    def _error(self, msg, offset, *args, cause=None):
-        error = ParseError(self.text, offset, msg, args)
-        error.__cause__ = cause
-        return error
+    def _debug(self, msg):
+        frame_infos = inspect.stack(context=1)
+        stack = []
+        for info in frame_infos:
+            if self != info.frame.f_locals.get("self"):
+                break
+            if not info.function.startswith("_parse_"):
+                continue
+            name = info.function.removeprefix("_parse_")
+            if name == "expr":
+                continue
+            offset = info.frame.f_locals.get("state").offset
+            stack.append((name, offset))
+        stack.reverse()
+        self._debug_stacks.append((msg, stack))
 
     def _parse_symbol(self, state, name, is_ignored=False, is_token=False):
         expr = self.parser.grammar.get_rule(name)
@@ -184,6 +208,8 @@ class ParseJob:
         start = state.offset
         end = start + len(value)
         if self.text[start:end] != value:
+            if state.offset == self._debug_offset:
+                self._debug(f"string: {self.text[start:end]!r} != {value!r}")
             return
 
         results = state.results
@@ -193,6 +219,8 @@ class ParseJob:
 
     def _parse_charset(self, state, groups, is_ignored=False, **kwargs):
         if state.offset >= len(self.text):
+            if state.offset == self._debug_offset:
+                self._debug("charset: EOF")
             return
         ch = self.text[state.offset]
         has_match = False
@@ -211,6 +239,8 @@ class ParseJob:
                         f"Unknown charset group: {type(g).__name__}"
                     )
         if not has_match:
+            if state.offset == self._debug_offset:
+                self._debug(f"charset: {ch!r} not in {groups}")
             return
 
         offset = state.offset + 1
@@ -224,6 +254,8 @@ class ParseJob:
             # Char matches base, so exclude if matches diff.
             try:
                 next(self._parse_expr(state, diff, **kwargs))
+                if state.offset == self._debug_offset:
+                    self._debug(f"charset_diff: diff {diff} matched")
             except StopIteration:
                 yield st
 
