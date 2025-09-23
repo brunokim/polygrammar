@@ -255,36 +255,3 @@ class Grammar:
 class Visitor:
     def visit(self, name, *args):
         return (name,) + args
-
-
-if __name__ == "__main__":
-    print(Symbol("x"))
-    print(String("x"))
-    print(Cat.create(Symbol("x"), String("y")))
-    print(Alt.create(Symbol("x"), String("y")))
-    print(
-        Cat.create(
-            Alt.create(Symbol("a"), String("b")), Alt.create(Symbol("x"), String("y"))
-        )
-    )
-    print(
-        Alt.create(
-            Cat.create(Symbol("a"), String("b")), Cat.create(Symbol("x"), String("y"))
-        )
-    )
-
-    print(String("\n\f\v\t '\""))
-    print(Repeat(String("ab"), 2, 5))
-    print(Repeat(String("ab"), 2))
-    print(Repeat(String("ab"), max=5))
-    print(Repeat(String("ab"), 2, 2))
-    print(Repeat(String("ab")))
-    print(Repeat.create(String("ab"), min=2, max=5))
-    print(Repeat.create(String("ab"), min=2))
-    print(Repeat.create(String("ab"), max=5))
-    print(Repeat.create(String("ab")))
-    print(Repeat.create(String("ab"), max=1))
-    print(Repeat.create(String("ab"), min=1))
-
-    print(Charset((Char("A"), CharRange(Char("a"), Char("z")), Char("-"))))
-    print(CharsetDiff(Symbol("char"), Charset([Char('"')])))
