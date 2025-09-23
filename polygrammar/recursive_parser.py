@@ -63,27 +63,30 @@ class Parser:
         yield from job.parse(start, offset)
 
     def full_parse(self, text, start=None):
+        has_match = False
+        max_error_offset = -1
         for result, offset in self.parse(text, start):
-            if offset != len(text):
-                yield ParseError(text, offset, "trailing characters")
-            else:
+            if offset == len(text):
+                has_match = True
                 yield result
+            elif offset > max_error_offset:
+                max_error_offset = offset
+
+        if has_match:
+            return
+        if max_error_offset >= 0:
+            raise ParseError(text, max_error_offset, "trailing characters")
+        raise ParseError(text, 0, "no match")
 
     def first_parse(self, text, start=None, offset=0):
         try:
-            result = next(self.parse(text, start, offset))
-            if isinstance(result, ParseError):
-                raise result
-            return result
+            return next(self.parse(text, start, offset))
         except StopIteration:
             raise ParseError(text, offset, "no match")
 
     def first_full_parse(self, text, start=None):
         try:
-            result = next(self.full_parse(text, start))
-            if isinstance(result, ParseError):
-                raise result
-            return result
+            return next(self.full_parse(text, start))
         except StopIteration:
             raise ParseError(text, 0, "no match")
 

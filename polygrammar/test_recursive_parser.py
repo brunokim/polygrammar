@@ -147,3 +147,32 @@ def number_parser():
 def test_parse_ignored(text, want, number_parser):
     (got,) = number_parser.first_full_parse(text)
     assert got == want
+
+
+def test_first_parse():
+    parser = Parser(Grammar.create(s=Optional.create("<", Symbol("s"), ">")))
+    text, offset = "<><<>><><>", 0
+    (got,), offset = parser.first_parse(text, offset=offset)
+    assert got == ("s", "<", ("s",), ">")
+    assert offset == 2
+    (got,), offset = parser.first_parse(text, offset=offset)
+    assert got == ("s", "<", ("s", "<", ("s",), ">"), ">")
+    assert offset == 6
+
+
+def test_ambiguous_parse():
+    parser = Parser(
+        Grammar.create(
+            s=Alt.create(
+                Cat.create("A", Symbol("s")), Cat.create("AA", Symbol("s")), "A"
+            )
+        )
+    )
+    valid_parses = list(parser.full_parse("AAAAA"))
+    assert valid_parses == [
+        [("s", "A", ("s", "A", ("s", "A", ("s", "A", ("s", "A")))))],
+        [("s", "A", ("s", "A", ("s", "AA", ("s", "A"))))],
+        [("s", "A", ("s", "AA", ("s", "A", ("s", "A"))))],
+        [("s", "AA", ("s", "A", ("s", "A", ("s", "A"))))],
+        [("s", "AA", ("s", "AA", ("s", "A")))],
+    ]
