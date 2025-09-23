@@ -94,11 +94,7 @@ def test_parse_charset_diff():
         Grammar.create(
             s=CharsetDiff.create(
                 Charset.create(CharRange.create("a", "z")),
-                Charset.create(
-                    "A",
-                    "m",
-                    CharRange.create("w", "z")
-                ),
+                Charset.create("A", "m", CharRange.create("w", "z")),
             )
         )
     )
@@ -118,3 +114,36 @@ def test_parse_charset_diff():
         parser.first_full_parse("x")
     with pytest.raises(ParseError):
         parser.first_full_parse("z")
+
+
+def test_parse_token():
+    parser = Parser(
+        Grammar.create(INT=OneOrMore.create(Charset.create(CharRange.create("0", "9"))))
+    )
+    (got,) = parser.first_full_parse("123")
+    assert got == "123"
+
+
+@pytest.fixture(scope="session")
+def number_parser():
+    return Parser(
+        Grammar.create(
+            INT=OneOrMore(Alt.create(Symbol("digit"), Symbol("_separator"))),
+            digit=Charset.create(CharRange.create("0", "9")),
+            _separator=Charset.create(" ", "_"),
+        )
+    )
+
+
+@pytest.mark.parametrize(
+    "text, want",
+    [
+        ("1", "1"),
+        ("123", "123"),
+        ("1_234", "1234"),
+        ("1 234 567", "1234567"),
+    ],
+)
+def test_parse_ignored(text, want, number_parser):
+    (got,) = number_parser.first_full_parse(text)
+    assert got == want
