@@ -1,3 +1,6 @@
+import re
+from textwrap import dedent
+
 import pytest
 
 from polygrammar.model import *
@@ -176,3 +179,49 @@ def test_ambiguous_parse():
         [("s", "AA", ("s", "A", ("s", "A", ("s", "A"))))],
         [("s", "AA", ("s", "AA", ("s", "A")))],
     ]
+
+
+@pytest.mark.parametrize(
+    "text, msg",
+    [
+        (
+            "ABBA",
+            dedent(
+                """\
+                At 1:2 (1): trailing characters
+                    ABBA
+                     ^
+                """
+            ),
+        ),
+        (
+            "BBBBB",
+            dedent(
+                """\
+                At 1:1 (0): no match
+                    BBBBB
+                    ^
+                """
+            ),
+        ),
+        (
+            dedent(
+                """\
+                AAAAA
+                AABAA
+                """
+            ),
+            dedent(
+                """\
+                At 2:3 (8): trailing characters
+                    AABAA
+                      ^
+                """
+            ),
+        ),
+    ],
+)
+def test_parse_error(text, msg):
+    parser = Parser(Grammar.create(s=OneOrMore(Alt.create("A", "\n"))))
+    with pytest.raises(ParseError, match=f"^{re.escape(msg)}$"):
+        parser.first_full_parse(text)

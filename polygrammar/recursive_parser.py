@@ -62,33 +62,27 @@ class Parser:
         job = ParseJob(self, text)
         yield from job.parse(start, offset)
 
+        if job._num_solutions == 0:
+            raise ParseError(text, offset, "no match")
+
     def full_parse(self, text, start=None):
-        has_match = False
+        has_full_match = False
         max_error_offset = -1
         for result, offset in self.parse(text, start):
             if offset == len(text):
-                has_match = True
+                has_full_match = True
                 yield result
             elif offset > max_error_offset:
                 max_error_offset = offset
 
-        if has_match:
-            return
-        if max_error_offset >= 0:
+        if not has_full_match:
             raise ParseError(text, max_error_offset, "trailing characters")
-        raise ParseError(text, 0, "no match")
 
     def first_parse(self, text, start=None, offset=0):
-        try:
-            return next(self.parse(text, start, offset))
-        except StopIteration:
-            raise ParseError(text, offset, "no match")
+        return next(self.parse(text, start, offset))
 
     def first_full_parse(self, text, start=None):
-        try:
-            return next(self.full_parse(text, start))
-        except StopIteration:
-            raise ParseError(text, 0, "no match")
+        return next(self.full_parse(text, start))
 
 
 @define
@@ -97,14 +91,20 @@ class State:
     results: list[Any] = field(factory=list)
 
 
-@frozen
+@define
 class ParseJob:
     parser: Parser = field(validator=instance_of(Parser))
     text: str = field(validator=instance_of(str))
 
+    _num_solutions: int = field(init=False, default=0)
+    _max_offset: int = field(init=False, default=0)
+
     def parse(self, start, offset):
+        self._num_solutions = 0
+        self._max_offset = 0
         initial_state = State(offset=offset)
         for state in self._parse_symbol(initial_state, start):
+            self._num_solutions += 1
             yield state.results, state.offset
 
     def _error(self, msg, offset, *args, cause=None):
@@ -135,6 +135,7 @@ class ParseJob:
             yield evolve(st, results=results + [result])
 
     def _parse_expr(self, state, expr, **kwargs):
+        self._max_offset = max(self._max_offset, state.offset)
         match expr:
             case Alt(exprs):
                 yield from self._parse_alt(state, exprs, **kwargs)
@@ -144,8 +145,8 @@ class ParseJob:
                 yield from self._parse_string(state, value, **kwargs)
             case Symbol(name):
                 yield from self._parse_symbol(state, name, **kwargs)
-            case Repeat(expr, min, max):
-                yield from self._parse_repeat(state, expr, min, max, **kwargs)
+            case Repeat(expr, min_, max_):
+                yield from self._parse_repeat(state, expr, min_, max_, **kwargs)
             case Charset(groups):
                 yield from self._parse_charset(state, groups, **kwargs)
             case CharsetDiff(base, diff):
