@@ -41,7 +41,7 @@ def ebnf_priority(self: Alt) -> int:
 
 
 @multimethod
-def ebnf_priority(self: CharsetDiff) -> int:
+def ebnf_priority(self: Diff) -> int:
     return 75
 
 

@@ -274,38 +274,3 @@ class ParseJob:
                     self._debug(f"charset_diff: diff {diff} matched")
             except StopIteration:
                 yield st
-
-
-if __name__ == "__main__":
-    g = Grammar.create(
-        s=Alt.create(Cat.create(Symbol("A"), Symbol("s")), Symbol("B")),
-        A=String("a"),
-        B=String("b"),
-    )
-    print(g)
-    print(Parser(g).first_full_parse("aaab"))
-    print()
-
-    g = Grammar.create(
-        s=Alt.create(
-            Cat.create(Symbol("A1"), Symbol("s")),
-            Cat.create(Symbol("A2"), Symbol("s")),
-            Symbol("A"),
-        ),
-        A=String("a"),
-        A1=String("a"),
-        A2=String("a"),
-    )
-    print(g)
-    for result in Parser(g).full_parse("aaaa"):
-        print(result)
-    print()
-
-    g = Grammar.create(
-        s=Repeat(String("a"), min=2),
-    )
-    print(g)
-    print(Parser(g).first_full_parse("aa"))
-    print(Parser(g).first_full_parse("aaa"))
-    print(Parser(g).first_full_parse("aaaa"))
-    print()
