@@ -9,6 +9,7 @@ from attrs.validators import (
     min_len,
     optional,
 )
+from multimethod import multimethod
 
 __all__ = [
     "Expr",
@@ -248,14 +249,6 @@ class Grammar:
         converter=tuple, validator=[min_len(1), deep_iterable(instance_of(Rule))]
     )
 
-    _rule_map = field(factory=dict, init=False)
-
-    def __attrs_post_init__(self):
-        for rule in self.rules:
-            if rule.name in self._rule_map:
-                raise ValueError(f"Duplicate rule name: {rule.name}")
-            self._rule_map[rule.name] = rule.expr
-
     @classmethod
     def create(cls, *rules, **kwargs) -> "Grammar":
         rules = list(rules)
@@ -263,8 +256,51 @@ class Grammar:
             rules.append(Rule.create(k, v))
         return cls(rules)
 
-    def get_rule(self, name: str) -> Rule:
-        return self._rule_map[Symbol(name)]
+
+# Recursive walk
+
+
+@multimethod
+def walk(node: String | Symbol | Charset, f):
+    yield from f(node)
+
+
+@multimethod
+def walk(node: Alt, f):  # noqa: F811
+    for e in node.exprs:
+        yield from walk(e, f)
+    yield from f(node)
+
+
+@multimethod
+def walk(node: Cat, f):  # noqa: F811
+    for e in node.exprs:
+        yield from walk(e, f)
+    yield from f(node)
+
+
+@multimethod
+def walk(node: Repeat, f):  # noqa: F811
+    yield from walk(node.expr, f)
+    yield from f(node)
+
+
+@multimethod
+def walk(node: Diff, f):  # noqa: F811
+    yield from walk(node.base, f)
+    yield from walk(node.diff, f)
+    yield from f(node)
+
+
+def symbols(e: Expr):
+    def f(e):
+        if isinstance(e, Symbol):
+            yield e.name
+
+    return set(walk(e, f))
+
+
+# Visitor
 
 
 class Visitor:

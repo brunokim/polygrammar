@@ -6,6 +6,7 @@ from attrs import define, evolve, field, frozen
 from attrs.validators import instance_of
 
 from polygrammar.model import *
+from polygrammar.model import symbols
 
 __all__ = ["Parser", "ParseError"]
 
@@ -49,13 +50,26 @@ class Parser:
     grammar: Grammar = field(validator=instance_of(Grammar))
     visitor: Visitor = field(factory=Visitor)
 
+    _rule_map: dict = field(init=False, factory=dict)
     _method_map: dict = field(init=False, factory=dict)
 
     def __attrs_post_init__(self):
+        seen = set()
         for rule in self.grammar.rules:
-            method_name = f"visit_{rule.name.name}"
+            name = rule.name.name
+            method_name = f"visit_{name}"
             if hasattr(self.visitor, method_name):
-                self._method_map[rule.name.name] = getattr(self.visitor, method_name)
+                self._method_map[name] = getattr(self.visitor, method_name)
+
+            if name in self._rule_map:
+                raise ValueError(f"Duplicate rule name: {name}")
+
+            seen |= symbols(rule.expr)
+
+            self._rule_map[name] = rule.expr
+
+        if missing := seen - self._rule_map.keys():
+            raise ValueError(f"Undefined rule(s): {', '.join(missing)}")
 
     def parse(self, text, start=None, offset=0, debug=True):
         if start is None:
@@ -139,7 +153,7 @@ class ParseJob:
         self._debug_stacks.append((msg, stack))
 
     def _parse_symbol(self, state, name, is_ignored=False, is_token=False):
-        expr = self.parser.grammar.get_rule(name)
+        expr = self.parser._rule_map[name]
 
         if is_ignored or name[0] == "_":
             yield from self._parse_expr(state, expr, is_ignored=True)
