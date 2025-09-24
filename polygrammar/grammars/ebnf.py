@@ -193,13 +193,14 @@ EBNF_GRAMMAR = parse_lisp(
         """"
         (zero_or_more
           (alt
-            (charset_diff CHAR """")
-            """"""))
+            (charset_diff CHAR """" "\\")
+            """"""
+            (cat "\\" CHAR)))
         """")
       (rule squote_string
         "'"
         (zero_or_more
-          (alt (charset_diff CHAR "'") "''"))
+          (alt (charset_diff CHAR "'" "\\") "''" (cat "\\" CHAR)))
         "'")
       (rule charset "[" (one_or_more charset_group) "]")
       (rule charset_group (alt char_range CHARSET_CHAR))
@@ -335,15 +336,3 @@ PARSER = Parser(EBNF_GRAMMAR, EbnfVisitor())
 def parse_ebnf(text):
     (node,) = PARSER.first_full_parse(text)
     return node
-
-
-if __name__ == "__main__":
-    grammar_text = to_ebnf(EBNF_GRAMMAR)
-    print(grammar_text)
-    print()
-    g = parse_ebnf(
-        grammar_text.replace("\n", "# comment\n").replace(" = ", "/* comment */=/**/")
-    )
-    print(to_ebnf(g))
-    print()
-    print(g == EBNF_GRAMMAR)

@@ -12,7 +12,7 @@ LISP_GRAMMAR_STR = r'''
   (rule SYMBOL (alt letter "_") (zero_or_more (alt letter digit "_")))
 
   ; A string is a sequence of characters enclosed in double quotes.
-  ; A double quote is escaped by doubling it. No other escapes are supported in this Lisp.
+  ; A double quote is escaped by doubling it.
   ; """" -> " "" " -> a single double quote character
   ; """""" -> " "" "" " -> two double quote characters
   (rule STRING
