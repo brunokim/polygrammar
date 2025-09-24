@@ -220,11 +220,11 @@ class Diff(Expr):
 class CharsetDiff(Diff):
     def __attrs_post_init__(self):
         if not isinstance(self.base, (Charset, Symbol, CharsetDiff)):
-            raise TypeError(f"base must be Charset or Symbol, got {type(self.base)}")
-        if not isinstance(self.diff, (Charset, Symbol)):
             raise TypeError(
-                f"diff must be Charset, Symbol, or CharsetDiff, got {type(self.diff)}"
+                f"base must be Charset, Symbol, or CharsetDiff got {type(self.base)}"
             )
+        if not isinstance(self.diff, (Charset, Symbol)):
+            raise TypeError(f"diff must be Charset or Symbol, got {type(self.diff)}")
 
     @classmethod
     def create(cls, base: Expr, *exprs) -> "CharsetDiff":
