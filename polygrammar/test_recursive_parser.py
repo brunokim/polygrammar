@@ -128,7 +128,7 @@ def test_parse_token():
 
 
 @pytest.fixture(scope="session")
-def number_parser():
+def integer_parser():
     return Parser(
         Grammar.create(
             INT=OneOrMore(Alt.create(Symbol("digit"), Symbol("_separator"))),
@@ -147,8 +147,8 @@ def number_parser():
         ("1 234 567", "1234567"),
     ],
 )
-def test_parse_ignored(text, want, number_parser):
-    (got,) = number_parser.first_full_parse(text)
+def test_parse_ignored(text, want, integer_parser):
+    (got,) = integer_parser.first_full_parse(text)
     assert got == want
 
 
@@ -240,3 +240,87 @@ def test_no_match():
         match="^no match$",
     ):
         parser.first_full_parse("BBBB")
+
+
+@pytest.fixture(scope="session")
+def number_grammar():
+    return Grammar.create(
+        number=Cat.create(
+            Optional.create(Symbol("sign")),
+            Symbol("DIGITS"),
+            Optional.create(".", Symbol("DIGITS")),
+            Optional.create(
+                Charset.create("e", "E"),
+                Optional.create(Symbol("sign")),
+                Symbol("DIGITS"),
+            ),
+        ),
+        sign=Charset.create("+", "-"),
+        DIGITS=OneOrMore.create(Charset.create(CharRange.create("0", "9"))),
+    )
+
+
+@pytest.fixture(scope="session")
+def number_visitor():
+    class NumberVisitor(Visitor):
+        def visit_number(self, *args):
+            args = iter(args)
+            token = next(args)
+
+            sign = "+"
+            if token in {"+", "-"}:
+                sign = token
+                token = next(args)
+
+            integer = token
+            token = next(args, None)
+
+            frac = "0"
+            if token == ".":
+                frac = next(args)
+                token = next(args, None)
+
+            exp_sign = "+"
+            exponent = "0"
+            if token in {"e", "E"}:
+                token = next(args)
+                if token in {"+", "-"}:
+                    exp_sign = token
+                    token = next(args)
+                exponent = token
+            return (sign, integer, frac, exp_sign, exponent)
+
+        def visit_sign(self, sign):
+            return sign
+
+        def visit_DIGITS(self, token):
+            return token
+
+    return NumberVisitor()
+
+
+@pytest.fixture(scope="session")
+def number_parser(number_grammar, number_visitor):
+    return Parser(number_grammar, number_visitor)
+
+
+@pytest.mark.parametrize(
+    "text, want",
+    [
+        ("1", ("+", "1", "0", "+", "0")),
+        ("123", ("+", "123", "0", "+", "0")),
+        ("+1", ("+", "1", "0", "+", "0")),
+        ("-1", ("-", "1", "0", "+", "0")),
+        ("-1.2", ("-", "1", "2", "+", "0")),
+        ("1.234", ("+", "1", "234", "+", "0")),
+        ("1e2", ("+", "1", "0", "+", "2")),
+        ("1e+2", ("+", "1", "0", "+", "2")),
+        ("1e-2", ("+", "1", "0", "-", "2")),
+        ("1E-2", ("+", "1", "0", "-", "2")),
+        ("1E-10", ("+", "1", "0", "-", "10")),
+        ("-012.345e-67", ("-", "012", "345", "-", "67")),
+    ],
+)
+def test_visitor(text, want, number_parser):
+    (got,) = number_parser.first_full_parse(text)
+    assert got == want
