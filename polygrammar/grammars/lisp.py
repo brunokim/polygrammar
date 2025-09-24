@@ -12,19 +12,6 @@ from polygrammar.recursive_parser import Parser
 __all__ = ["parse_lisp", "PARSER", "LISP_GRAMMAR", "LispVisitor"]
 
 
-alt = Alt.create
-cat = Cat.create
-zero_or_more = ZeroOrMore.create
-one_or_more = OneOrMore.create
-symbol = Symbol
-string = String
-charset = Charset.create
-char_range = CharRange.create
-charset_diff = CharsetDiff.create
-rule = Rule.create
-grammar = Grammar.create
-
-
 # Escapes
 
 _STRING_ESCAPES = SLASH_ESCAPES | {'"': '""'}
@@ -149,6 +136,21 @@ def lisp_str(obj, level=1):
     return f"({name} {args_str})"
 
 
+# Grammar, visitor, parser
+
+alt = Alt.create
+cat = Cat.create
+zero_or_more = ZeroOrMore.create
+one_or_more = OneOrMore.create
+symbol = Symbol
+string = String
+charset = Charset.create
+char_range = CharRange.create
+charset_diff = CharsetDiff.create
+rule = Rule.create
+grammar = Grammar.create
+
+
 LISP_GRAMMAR = grammar(
     terms=cat(symbol("_"), zero_or_more(symbol("term"), symbol("_"))),
     term=cat(
@@ -178,35 +180,13 @@ LISP_GRAMMAR = grammar(
     CHAR=charset(char_range("\x21", "\x7e"), " ", "\t"),
 )
 
-LISP_GRAMMAR_STR = r'''
-(grammar
-  (rule terms _ (zero_or_more term _))
-  (rule term "(" _ value (zero_or_more _1 value) _ ")")
-  (rule value (alt SYMBOL STRING term))
-  (rule SYMBOL (alt letter "_") (zero_or_more (alt letter digit "_")))
-  (rule STRING
-    """"
-    (zero_or_more
-      (alt
-        (charset_diff CHAR (charset """"))
-        """"""))
-    """")
-  (rule _ (zero_or_more (alt space comment)))
-  (rule _1 (one_or_more (alt space comment)))
-  (rule comment ";" (zero_or_more CHAR) "\n")
-  (rule letter (charset (char_range "a" "z") (char_range "A" "Z")))
-  (rule digit (charset (char_range "0" "9")))
-  (rule space (charset " " "\t" "\n" "\r" ","))
-  (rule CHAR (charset (char_range "!" "~") " " "\t")))
-'''
-
 
 class LispVisitor(Visitor):
     def visit_terms(self, *terms):
         return terms
 
     def visit_term(self, *values):
-        name, *args = values[1:-1]  # Remove os parênteses
+        name, *args = values[1:-1]  # Remove parenthesis
         if isinstance(name, Symbol):
             name = name.name
         cls = lisp_name[name]
@@ -233,31 +213,3 @@ def parse_lisp(text):
     (node,) = PARSER.first_full_parse(text)
     (grammar,) = node
     return grammar
-
-
-if __name__ == "__main__":
-    from prettyprinter import cpprint, install_extras, set_default_style
-
-    install_extras(["attrs"])
-    set_default_style("dark")
-    cpprint(LISP_GRAMMAR)
-
-    x = to_lisp(LISP_GRAMMAR)
-    cpprint(x)
-
-    text = lisp_str(x)
-    print(text)
-    print()
-
-    g = parse_lisp(text)
-    print(lisp_str(to_lisp(g)))
-    print()
-
-    print(g == LISP_GRAMMAR)
-    print()
-
-    g = parse_lisp(LISP_GRAMMAR_STR)
-    print(lisp_str(to_lisp(g)))
-    print()
-
-    print(g == LISP_GRAMMAR)
