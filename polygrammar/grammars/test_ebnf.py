@@ -19,8 +19,8 @@ SYMBOL = (letter | '_') (letter | digit | '_')* ;
 
 # String may use double or single quotes. Escape a quote by doubling it or with backslash.
 STRING        = dquote_string | squote_string ;
-dquote_string = '"' (CHAR - ["\\] | '""' | '\\' CHAR)* '"' ;
-squote_string = "'" (CHAR - ['\\] | "''" | '\\' CHAR)* "'" ;
+dquote_string = '"' (CHAR - '"' - '\\' | '""' | '\\' CHAR)* '"' ;
+squote_string = "'" (CHAR - "'" - "\\" | "''" | '\\' CHAR)* "'" ;
 
 /* Charset use a limited regex syntax.
    - "^" for negation is not supported; use a diff '-' instead.
@@ -28,7 +28,7 @@ squote_string = "'" (CHAR - ['\\] | "''" | '\\' CHAR)* "'" ;
 */
 charset       = '[' charset_group+ ']' ;
 charset_group = char_range | CHARSET_CHAR ;
-CHARSET_CHAR  = CHAR - [\]\-\\] | '\\' CHAR ;
+CHARSET_CHAR  = CHAR - ']' - '-' - '\\' | '\\' CHAR ;
 char_range    = CHARSET_CHAR '-' CHARSET_CHAR ;
 
 # Number is a sequence of digits.
@@ -39,7 +39,7 @@ _             = (space | comment)* ;
 _1            = (space | comment)+ ;
 comment       = line_comment | block_comment ;
 line_comment  = '#' CHAR* '\n' ;
-block_comment = '/*' (CHAR1 - [*] | '*' (CHAR1 - [/]))* '*'? '*/' ;
+block_comment = '/*' (CHAR1 - '*' | '*' (CHAR1 - '/'))* '*'? '*/' ;
 
 # ASCII character classes
 letter = [a-zA-Z] ;

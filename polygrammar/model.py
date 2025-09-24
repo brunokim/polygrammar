@@ -23,6 +23,7 @@ __all__ = [
     "Char",
     "CharRange",
     "Charset",
+    "Diff",
     "CharsetDiff",
     "Rule",
     "Grammar",
@@ -36,6 +37,10 @@ def to_string(x):
 
 def to_char(x):
     return Char(x) if isinstance(x, str) else x
+
+
+def to_charset(x):
+    return Charset([x]) if isinstance(x, (Char, CharRange)) else x
 
 
 def to_symbol(x):
@@ -199,22 +204,32 @@ class Charset(Expr):
 
 
 @frozen
-class CharsetDiff(Expr):
-    base: "Charset | Symbol | CharsetDiff" = field()
-    diff: Charset | Symbol = field(validator=instance_of((Charset, Symbol)))
-
-    @base.validator
-    def _check_base(self, attribute, value):
-        v = instance_of((Charset, Symbol, CharsetDiff))
-        v(self, attribute, value)
+class Diff(Expr):
+    base: Expr = field(validator=instance_of(Expr))
+    diff: Expr = field(validator=instance_of(Expr))
 
     @classmethod
-    def create(cls, base, *groups):
-        if len(groups) == 0:
-            return base
-        if len(groups) == 1 and isinstance(groups[0], (Charset, Symbol)):
-            return cls(base, groups[0])
-        return cls(base, Charset.create(*groups))
+    def create(cls, base: Expr, *exprs: Expr) -> "Diff":
+        for expr in exprs:
+            base = cls(base, to_string(expr))
+        return base
+
+
+@frozen
+class CharsetDiff(Diff):
+    def __attrs_post_init__(self):
+        if not isinstance(self.base, (Charset, Symbol, CharsetDiff)):
+            raise TypeError(f"base must be Charset or Symbol, got {type(self.base)}")
+        if not isinstance(self.diff, (Charset, Symbol)):
+            raise TypeError(
+                f"diff must be Charset, Symbol, or CharsetDiff, got {type(self.diff)}"
+            )
+
+    @classmethod
+    def create(cls, base: Expr, *exprs) -> "CharsetDiff":
+        for expr in exprs:
+            base = cls(base, to_charset(to_char(expr)))
+        return base
 
 
 @frozen

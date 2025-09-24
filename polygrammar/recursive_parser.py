@@ -175,8 +175,8 @@ class ParseJob:
                 yield from self._parse_repeat(state, expr, min_, max_, **kwargs)
             case Charset(groups):
                 yield from self._parse_charset(state, groups, **kwargs)
-            case CharsetDiff(base, diff):
-                yield from self._parse_charset_diff(state, base, diff, **kwargs)
+            case Diff(base, diff):
+                yield from self._parse_diff(state, base, diff, **kwargs)
             case _:
                 raise NotImplementedError(f"Unknown expr type: {type(expr).__name__}")
 
@@ -251,9 +251,9 @@ class ParseJob:
             results = results + [ch]
         yield evolve(state, offset=offset, results=results)
 
-    def _parse_charset_diff(self, state, base, diff, **kwargs):
+    def _parse_diff(self, state, base, diff, **kwargs):
         for st in self._parse_expr(state, base, **kwargs):
-            # Char matches base, so exclude if matches diff.
+            # Text matches base, so exclude if matches diff.
             try:
                 next(self._parse_expr(state, diff, **kwargs))
                 if state.offset == self._debug_offset:

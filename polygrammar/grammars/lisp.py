@@ -36,6 +36,7 @@ lisp_name = {
     "one_or_more": OneOrMore,
     "char_range": CharRange,
     "charset": Charset,
+    "diff": Diff,
     "charset_diff": CharsetDiff,
     "rule": Rule,
     "grammar": Grammar,
@@ -103,6 +104,11 @@ def to_lisp(self: Charset):
 
 
 @multimethod
+def to_lisp(self: Diff):
+    return ("diff", to_lisp(self.base), to_lisp(self.diff))
+
+
+@multimethod
 def to_lisp(self: CharsetDiff):
     return ("charset_diff", to_lisp(self.base), to_lisp(self.diff))
 
@@ -138,12 +144,12 @@ def lisp_str(obj, level=1):
 
 # Grammar, visitor, parser
 
+symbol = Symbol
+string = String
 alt = Alt.create
 cat = Cat.create
 zero_or_more = ZeroOrMore.create
 one_or_more = OneOrMore.create
-symbol = Symbol
-string = String
 charset = Charset.create
 char_range = CharRange.create
 charset_diff = CharsetDiff.create

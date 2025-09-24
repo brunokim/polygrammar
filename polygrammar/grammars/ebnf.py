@@ -158,7 +158,7 @@ def to_ebnf(self: Charset) -> str:
 
 
 @multimethod
-def to_ebnf(self: CharsetDiff) -> str:
+def to_ebnf(self: Diff) -> str:
     return to_ebnf(self.base) + " - " + to_ebnf(self.diff)
 
 
@@ -199,14 +199,14 @@ EBNF_GRAMMAR = parse_lisp(
         """"
         (zero_or_more
           (alt
-            (charset_diff CHAR """" "\\")
+            (diff CHAR """" "\")
             """"""
-            (cat "\\" CHAR)))
+            (cat "\" CHAR)))
         """")
       (rule squote_string
         "'"
         (zero_or_more
-          (alt (charset_diff CHAR "'" "\\") "''" (cat "\\" CHAR)))
+          (alt (diff CHAR "'" "\") "''" (cat "\" CHAR)))
         "'")
 
       ; Charset use a limited regex syntax.
@@ -216,7 +216,7 @@ EBNF_GRAMMAR = parse_lisp(
       (rule charset_group (alt char_range CHARSET_CHAR))
       (rule CHARSET_CHAR
         (alt
-          (charset_diff CHAR "]" "-" "\")
+          (diff CHAR "]" "-" "\")
           (cat "\" CHAR)))
       (rule char_range CHARSET_CHAR "-" CHARSET_CHAR)
 
@@ -232,8 +232,8 @@ EBNF_GRAMMAR = parse_lisp(
         "/*"
         (zero_or_more
           (alt
-            (charset_diff CHAR1 "*")
-            (cat "*" (charset_diff CHAR1 "/"))))
+            (diff CHAR1 "*")
+            (cat "*" (diff CHAR1 "/"))))
         (optional "*")
         "*/")
 
@@ -300,8 +300,9 @@ class EbnfVisitor(Visitor):
                 return min, max
 
     def visit_diff(self, base, *args):
+        # Jump over "-" signs.
         for i in range(1, len(args), 2):
-            base = CharsetDiff(base, args[i])
+            base = Diff(base, args[i])
         return base
 
     def visit_atom(self, *args):
