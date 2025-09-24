@@ -179,6 +179,8 @@ EBNF_GRAMMAR = parse_lisp(
     (grammar
       (rule grammar _ (one_or_more rule _ ";" _))
       (rule rule SYMBOL _ "=" _ expr)
+
+      ; Expressions
       (rule expr alt)
       (rule alt cat (zero_or_more _ "|" _ cat))
       (rule cat term (zero_or_more _1 term))
@@ -187,7 +189,11 @@ EBNF_GRAMMAR = parse_lisp(
       (rule min_max "{" (optional NUMBER) "," (optional NUMBER) "}")
       (rule diff atom (one_or_more _ "-" _ atom))
       (rule atom (alt SYMBOL STRING charset (cat "(" _ expr _ ")")))
+
+      ; Symbol uses C syntax.
       (rule SYMBOL (alt letter "_") (zero_or_more (alt letter digit "_")))
+
+      ; String may use double or single quotes. Escape a quote by doubling it or with backslash.
       (rule STRING (alt dquote_string squote_string))
       (rule dquote_string
         """"
@@ -202,6 +208,10 @@ EBNF_GRAMMAR = parse_lisp(
         (zero_or_more
           (alt (charset_diff CHAR "'" "\\") "''" (cat "\\" CHAR)))
         "'")
+
+      ; Charset use a limited regex syntax.
+      ; - "^" for negation is not supported; use a diff '-' instead.
+      ; - "-" always needs to be escaped, independent of its position.
       (rule charset "[" (one_or_more charset_group) "]")
       (rule charset_group (alt char_range CHARSET_CHAR))
       (rule CHARSET_CHAR
@@ -209,7 +219,11 @@ EBNF_GRAMMAR = parse_lisp(
           (charset_diff CHAR "]" "-" "\")
           (cat "\" CHAR)))
       (rule char_range CHARSET_CHAR "-" CHARSET_CHAR)
+
+      ; Number is a sequence of digits.
       (rule NUMBER (one_or_more digit))
+
+      ; Whitespace
       (rule _ (zero_or_more (alt space comment)))
       (rule _1 (one_or_more (alt space comment)))
       (rule comment (alt line_comment block_comment))
@@ -222,6 +236,8 @@ EBNF_GRAMMAR = parse_lisp(
             (cat "*" (charset_diff CHAR1 "/"))))
         (optional "*")
         "*/")
+
+      ; ASCII character classes
       (rule letter (charset (char_range "a" "z") (char_range "A" "Z")))
       (rule digit (charset (char_range "0" "9")))
       (rule space (charset " " "\t" "\n" "\r"))
