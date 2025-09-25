@@ -62,9 +62,9 @@ ABNF_GRAMMAR = parse_lisp(
         (rule SP " ")
         (rule DQUOTE """")
         (rule LWSP (* (| WSP (cat CRLF WSP))))
-        ; (rule OCTET (charset (char_range "\x00" "\x7F")))
-        ; (rule CHAR (charset (char_range "\x01" "\x7F")))
-        ; (rule CTL (charset (char_range "\x00" "\x1F") "\x7F"))
+        (rule OCTET (charset (char_range "\x00" "\x7F")))
+        (rule CHAR (charset (char_range "\x01" "\x7F")))
+        (rule CTL (charset (char_range "\x00" "\x1F") "\x7F"))
     )
     '''
 )

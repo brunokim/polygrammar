@@ -72,6 +72,48 @@ class CombinedEscapes(Escape):
         return m.group()
 
 
+class HexCharacterCode(Escape):
+    def __init__(self):
+        super().__init__(r"[\x00-\x1F\x7F-\x9F]", r"\\x([0-9a-fA-F]{2})")
+
+    def serializer_replacer(self, m):
+        ch = m.group()
+        return rf"\x{ord(ch):02x}"
+
+    def parser_replacer(self, m):
+        code_str = m.group(1)
+        code = int(code_str, base=16)
+        return chr(code)
+
+
+class Unicode16CharacterCode(Escape):
+    def __init__(self):
+        super().__init__(r"[\u0100-\uFFFF]", r"\\u([0-9a-fA-F]{4})")
+
+    def serializer_replacer(self, m):
+        ch = m.group()
+        return rf"\u{ord(ch):04x}"
+
+    def parser_replacer(self, m):
+        code_str = m.group(1)
+        code = int(code_str, base=16)
+        return chr(code)
+
+
+class Unicode32CharacterCode(Escape):
+    def __init__(self):
+        super().__init__(r"\\U([0-9a-fA-F]{8})", r"[\U00010000-\U0010FFFF]")
+
+    def serializer_replacer(self, m):
+        code_str = m.group(1)
+        code = int(code_str, base=16)
+        return chr(code)
+
+    def parser_replacer(self, m):
+        ch = m.group()
+        return rf"\U{ord(ch):08x}"
+
+
 DUPLICATE_DOUBLE_QUOTE_ESCAPE = DuplicateQuote('"')
 DUPLICATE_SINGLE_QUOTE_ESCAPE = DuplicateQuote("'")
 SINGLE_CHAR_SLASH_ESCAPE = FiniteSet(
@@ -85,4 +127,7 @@ SINGLE_CHAR_SLASH_ESCAPE = FiniteSet(
         "\t": r"\t",
         "\v": r"\v",
     }
+)
+CODE_ESCAPE = CombinedEscapes(
+    [HexCharacterCode(), Unicode16CharacterCode(), Unicode32CharacterCode()]
 )

@@ -1,6 +1,7 @@
 from multimethod import multimethod
 
 from polygrammar.grammars.escapes import (
+    CODE_ESCAPE,
     DUPLICATE_DOUBLE_QUOTE_ESCAPE,
     SINGLE_CHAR_SLASH_ESCAPE,
     CombinedEscapes,
@@ -13,7 +14,9 @@ __all__ = ["parse_lisp", "PARSER", "LISP_GRAMMAR", "LispVisitor"]
 
 # Escapes
 
-ESCAPE = CombinedEscapes([DUPLICATE_DOUBLE_QUOTE_ESCAPE, SINGLE_CHAR_SLASH_ESCAPE])
+ESCAPE = CombinedEscapes(
+    [DUPLICATE_DOUBLE_QUOTE_ESCAPE, SINGLE_CHAR_SLASH_ESCAPE, CODE_ESCAPE]
+)
 
 # to_lisp
 
