@@ -178,7 +178,13 @@ LISP_GRAMMAR = grammar(
     operator=charset("+", "*", "?", "/", "|", "-", "!"),
     STRING=cat(
         string('"'),
-        zero_or_more(alt(charset_diff(symbol("CHAR"), '"'), string('""'))),
+        zero_or_more(
+            alt(
+                charset_diff(symbol("CHAR"), '"', "\\"),
+                string('""'),
+                cat(string("\\"), symbol("CHAR")),
+            )
+        ),
         string('"'),
     ),
     _=zero_or_more(alt(symbol("space"), symbol("comment"))),

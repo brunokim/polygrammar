@@ -21,7 +21,10 @@ LISP_GRAMMAR_STR = r'''
   ; """""" -> " "" "" " -> two double quote characters
   (rule STRING
     """"
-    (* (| (charset_diff CHAR (charset """")) """"""))
+    (* (|
+      (charset_diff CHAR """" "\\")
+      """"""
+      (cat "\\" CHAR)))
     """")
 
   ; Whitespace

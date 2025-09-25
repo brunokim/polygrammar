@@ -194,13 +194,13 @@ EBNF_GRAMMAR = parse_lisp(
       (rule dquote_string
         """"
         (* (|
-          (- CHAR """" "\")
+          (- CHAR """" "\\")
           """"""
-          (cat "\" CHAR)))
+          (cat "\\" CHAR)))
         """")
       (rule squote_string
         "'"
-        (* (| (- CHAR "'" "\") "''" (cat "\" CHAR)))
+        (* (| (- CHAR "'" "\\") "''" (cat "\\" CHAR)))
         "'")
 
       ; Charset use a limited regex syntax.
@@ -210,8 +210,8 @@ EBNF_GRAMMAR = parse_lisp(
       (rule charset_group (| char_range CHARSET_CHAR))
       (rule CHARSET_CHAR
         (|
-          (- CHAR "]" "-" "\")
-          (cat "\" CHAR)))
+          (- CHAR "]" "-" "\\")
+          (cat "\\" CHAR)))
       (rule char_range CHARSET_CHAR "-" CHARSET_CHAR)
 
       ; Number is a sequence of digits.
