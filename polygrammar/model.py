@@ -4,7 +4,6 @@ from attrs.validators import (
     deep_iterable,
     ge,
     instance_of,
-    matches_re,
     max_len,
     min_len,
     optional,
@@ -162,9 +161,7 @@ class OneOrMore(Repeat):
 
 @frozen
 class Symbol(Expr):
-    name: str = field(
-        validator=[instance_of(str), matches_re("[a-zA-Z_][a-zA-Z0-9_]*")]
-    )
+    name: str = field(validator=[instance_of(str), min_len(1)])
 
 
 @frozen

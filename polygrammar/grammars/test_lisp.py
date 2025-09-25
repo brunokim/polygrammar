@@ -4,12 +4,16 @@ LISP_GRAMMAR_STR = r'''
 (grammar
   ; This is a generic Lisp-like grammar, allowing nested list expressions.
   ; The only terminals are symbols and strings.
-  (rule terms _ (zero_or_more term _))
-  (rule term "(" _ value (zero_or_more _1 value) _ ")")
-  (rule value (alt SYMBOL STRING term))
+  (rule terms _ (* term _))
+  (rule term "(" _ value (* _1 value) _ ")")
+  (rule value (| SYMBOL STRING term))
 
   ; Symbol syntax inherits from C, which is the least-common denominator for most programming languages.
-  (rule SYMBOL (alt letter "_") (zero_or_more (alt letter digit "_")))
+  (rule SYMBOL (| c_symbol operator))
+  (rule c_symbol
+    (| letter "_")
+    (* (| letter digit "_" "-")))
+  (rule operator (charset "+" "*" "?" "/" "|" "-" "!"))
 
   ; A string is a sequence of characters enclosed in double quotes.
   ; A double quote is escaped by doubling it.
@@ -17,16 +21,13 @@ LISP_GRAMMAR_STR = r'''
   ; """""" -> " "" "" " -> two double quote characters
   (rule STRING
     """"
-    (zero_or_more
-      (alt
-        (charset_diff CHAR (charset """"))
-        """"""))
+    (* (| (charset_diff CHAR (charset """")) """"""))
     """")
 
   ; Whitespace
-  (rule _ (zero_or_more (alt space comment)))
-  (rule _1 (one_or_more (alt space comment)))
-  (rule comment ";" (zero_or_more CHAR) "\n")
+  (rule _ (* (| space comment)))
+  (rule _1 (+ (| space comment)))
+  (rule comment ";" (* CHAR) "\n")
 
   ; ASCII character classes
   (rule letter (charset (char_range "a" "z") (char_range "A" "Z")))

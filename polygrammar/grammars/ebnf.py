@@ -177,64 +177,61 @@ def to_ebnf(self: Grammar) -> str:
 EBNF_GRAMMAR = parse_lisp(
     r'''
     (grammar
-      (rule grammar _ (one_or_more rule _ ";" _))
+      (rule grammar _ (+ rule _ ";" _))
       (rule rule SYMBOL _ "=" _ expr)
 
       ; Expressions
       (rule expr alt)
-      (rule alt cat (zero_or_more _ "|" _ cat))
-      (rule cat term (zero_or_more _1 term))
-      (rule term (alt repeat diff atom))
-      (rule repeat atom (alt "*" "+" "?" min_max))
-      (rule min_max "{" (optional NUMBER) "," (optional NUMBER) "}")
-      (rule diff atom (one_or_more _ "-" _ atom))
-      (rule atom (alt SYMBOL STRING charset (cat "(" _ expr _ ")")))
+      (rule alt cat (* _ "|" _ cat))
+      (rule cat term (* _1 term))
+      (rule term (| repeat diff atom))
+      (rule repeat atom (| "*" "+" "?" min_max))
+      (rule min_max "{" (? NUMBER) "," (? NUMBER) "}")
+      (rule diff atom (+ _ "-" _ atom))
+      (rule atom (| SYMBOL STRING charset (cat "(" _ expr _ ")")))
 
       ; Symbol uses C syntax.
-      (rule SYMBOL (alt letter "_") (zero_or_more (alt letter digit "_")))
+      (rule SYMBOL (| letter "_") (* (| letter digit "_")))
 
       ; String may use double or single quotes. Escape a quote by doubling it or with backslash.
-      (rule STRING (alt dquote_string squote_string))
+      (rule STRING (| dquote_string squote_string))
       (rule dquote_string
         """"
-        (zero_or_more
-          (alt
-            (diff CHAR """" "\")
-            """"""
-            (cat "\" CHAR)))
+        (* (|
+          (- CHAR """" "\")
+          """"""
+          (cat "\" CHAR)))
         """")
       (rule squote_string
         "'"
-        (zero_or_more
-          (alt (diff CHAR "'" "\") "''" (cat "\" CHAR)))
+        (* (| (- CHAR "'" "\") "''" (cat "\" CHAR)))
         "'")
 
       ; Charset use a limited regex syntax.
       ; - "^" for negation is not supported; use a diff '-' instead.
       ; - "-" always needs to be escaped, independent of its position.
-      (rule charset "[" (one_or_more charset_group) "]")
-      (rule charset_group (alt char_range CHARSET_CHAR))
+      (rule charset "[" (+ charset_group) "]")
+      (rule charset_group (| char_range CHARSET_CHAR))
       (rule CHARSET_CHAR
-        (alt
-          (diff CHAR "]" "-" "\")
+        (|
+          (- CHAR "]" "-" "\")
           (cat "\" CHAR)))
       (rule char_range CHARSET_CHAR "-" CHARSET_CHAR)
 
       ; Number is a sequence of digits.
-      (rule NUMBER (one_or_more digit))
+      (rule NUMBER (+ digit))
 
       ; Whitespace
-      (rule _ (zero_or_more (alt space comment)))
-      (rule _1 (one_or_more (alt space comment)))
-      (rule comment (alt line_comment block_comment))
-      (rule line_comment "#" (zero_or_more CHAR) "\n")
+      (rule _ (* (| space comment)))
+      (rule _1 (+ (| space comment)))
+      (rule comment (| line_comment block_comment))
+      (rule line_comment "#" (* CHAR) "\n")
       (rule block_comment
         "/*"
-        (zero_or_more
-          (alt
-            (diff CHAR1 "*")
-            (cat "*" (diff CHAR1 "/"))))
-        (optional "*")
+        (* (|
+          (- CHAR1 "*")
+          (cat "*" (- CHAR1 "/"))))
+        (? "*")
         "*/")
 
       ; ASCII character classes
