@@ -1,10 +1,13 @@
 from multimethod import multimethod
 
 from polygrammar.grammars.escapes import (
-    CODE_ESCAPE,
     DUPLICATE_DOUBLE_QUOTE_ESCAPE,
-    SINGLE_CHAR_SLASH_ESCAPE,
+    PYTHON_SINGLE_CHAR_ESCAPES,
     CombinedEscapes,
+    SingleCharBackslash,
+    Unicode8CharacterCode,
+    Unicode16CharacterCode,
+    Unicode32CharacterCode,
 )
 from polygrammar.model import *
 from polygrammar.recursive_parser import Parser
@@ -15,7 +18,13 @@ __all__ = ["parse_lisp", "PARSER", "LISP_GRAMMAR", "LispVisitor"]
 # Escapes
 
 ESCAPE = CombinedEscapes(
-    [DUPLICATE_DOUBLE_QUOTE_ESCAPE, SINGLE_CHAR_SLASH_ESCAPE, CODE_ESCAPE]
+    [
+        DUPLICATE_DOUBLE_QUOTE_ESCAPE,
+        Unicode8CharacterCode(),
+        Unicode16CharacterCode(),
+        Unicode32CharacterCode(),
+        SingleCharBackslash(PYTHON_SINGLE_CHAR_ESCAPES),
+    ]
 )
 
 # to_lisp

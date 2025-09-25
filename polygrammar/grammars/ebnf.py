@@ -3,9 +3,9 @@ from multimethod import multimethod
 from polygrammar.grammars.escapes import (
     DUPLICATE_DOUBLE_QUOTE_ESCAPE,
     DUPLICATE_SINGLE_QUOTE_ESCAPE,
-    SINGLE_CHAR_SLASH_ESCAPE,
+    PYTHON_SINGLE_CHAR_ESCAPES,
     CombinedEscapes,
-    FiniteSet,
+    SingleCharBackslash,
 )
 from polygrammar.grammars.lisp import parse_lisp
 from polygrammar.model import *
@@ -15,15 +15,14 @@ __all__ = ["to_ebnf", "parse_ebnf", "PARSER", "EBNF_GRAMMAR", "EbnfVisitor"]
 
 # Escapes
 
+PYTHON_SINGLE_CHAR_ESCAPE = SingleCharBackslash(PYTHON_SINGLE_CHAR_ESCAPES)
 DQUOTE_STRING_ESCAPE = CombinedEscapes(
-    [DUPLICATE_DOUBLE_QUOTE_ESCAPE, SINGLE_CHAR_SLASH_ESCAPE]
+    [DUPLICATE_DOUBLE_QUOTE_ESCAPE, PYTHON_SINGLE_CHAR_ESCAPE]
 )
 SQUOTE_STRING_ESCAPE = CombinedEscapes(
-    [DUPLICATE_SINGLE_QUOTE_ESCAPE, SINGLE_CHAR_SLASH_ESCAPE]
+    [DUPLICATE_SINGLE_QUOTE_ESCAPE, PYTHON_SINGLE_CHAR_ESCAPE]
 )
-CHAR_ESCAPE = CombinedEscapes(
-    [FiniteSet({"-": r"\-", "]": r"\]"}), SINGLE_CHAR_SLASH_ESCAPE]
-)
+CHAR_ESCAPE = SingleCharBackslash(PYTHON_SINGLE_CHAR_ESCAPES | {"-": "-", "]": "]"})
 
 # ebnf_priority
 
