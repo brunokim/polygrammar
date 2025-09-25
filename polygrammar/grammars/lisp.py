@@ -1,10 +1,9 @@
 from multimethod import multimethod
 
 from polygrammar.grammars.escapes import (
-    SLASH_ESCAPES,
-    make_escapes_pattern,
-    replace_escapes,
-    reverse_escapes,
+    DUPLICATE_DOUBLE_QUOTE_ESCAPE,
+    SINGLE_CHAR_SLASH_ESCAPE,
+    CombinedEscapes,
 )
 from polygrammar.model import *
 from polygrammar.recursive_parser import Parser
@@ -14,12 +13,7 @@ __all__ = ["parse_lisp", "PARSER", "LISP_GRAMMAR", "LispVisitor"]
 
 # Escapes
 
-_STRING_ESCAPES = SLASH_ESCAPES | {'"': '""'}
-_STRING_REVERSE_ESCAPES = reverse_escapes(_STRING_ESCAPES)
-
-_STRING_PATTERN = make_escapes_pattern(_STRING_ESCAPES)
-_STRING_REVERSE_PATTERN = make_escapes_pattern(_STRING_REVERSE_ESCAPES)
-
+ESCAPE = CombinedEscapes([DUPLICATE_DOUBLE_QUOTE_ESCAPE, SINGLE_CHAR_SLASH_ESCAPE])
 
 # to_lisp
 
@@ -133,7 +127,7 @@ MAX_WIDTH = 80
 
 def lisp_str(obj, level=1):
     if isinstance(obj, str):
-        content = replace_escapes(_STRING_PATTERN, _STRING_ESCAPES, obj)
+        content = ESCAPE.serialize(obj)
         return f'"{content}"'
     if not isinstance(obj, tuple):
         return repr(obj)
@@ -215,7 +209,7 @@ class LispVisitor(Visitor):
 
     def visit_STRING(self, token):
         value = token[1:-1]
-        value = replace_escapes(_STRING_REVERSE_PATTERN, _STRING_REVERSE_ESCAPES, value)
+        value = ESCAPE.parse(value)
         return value
 
 

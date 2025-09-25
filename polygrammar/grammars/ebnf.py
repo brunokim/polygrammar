@@ -1,10 +1,11 @@
 from multimethod import multimethod
 
 from polygrammar.grammars.escapes import (
-    SLASH_ESCAPES,
-    make_escapes_pattern,
-    replace_escapes,
-    reverse_escapes,
+    DUPLICATE_DOUBLE_QUOTE_ESCAPE,
+    DUPLICATE_SINGLE_QUOTE_ESCAPE,
+    SINGLE_CHAR_SLASH_ESCAPE,
+    CombinedEscapes,
+    FiniteSet,
 )
 from polygrammar.grammars.lisp import parse_lisp
 from polygrammar.model import *
@@ -14,18 +15,15 @@ __all__ = ["to_ebnf", "parse_ebnf", "PARSER", "EBNF_GRAMMAR", "EbnfVisitor"]
 
 # Escapes
 
-_DQUOTE_STRING_ESCAPES = SLASH_ESCAPES | {'"': '""'}
-_SQUOTE_STRING_ESCAPES = SLASH_ESCAPES | {"'": "''"}
-_CHAR_ESCAPES = SLASH_ESCAPES | {"-": r"\-", "]": r"\]"}
-
-_DQUOTE_STRING_REVERSE_ESCAPES = reverse_escapes(_DQUOTE_STRING_ESCAPES)
-_SQUOTE_STRING_REVERSE_ESCAPES = reverse_escapes(_SQUOTE_STRING_ESCAPES)
-_CHAR_REVERSE_ESCAPES = reverse_escapes(_CHAR_ESCAPES)
-
-_DQUOTE_STRING_PATTERN = make_escapes_pattern(_DQUOTE_STRING_ESCAPES)
-_SQUOTE_STRING_PATTERN = make_escapes_pattern(_SQUOTE_STRING_ESCAPES)
-_DQUOTE_STRING_REVERSE_PATTERN = make_escapes_pattern(_DQUOTE_STRING_REVERSE_ESCAPES)
-_SQUOTE_STRING_REVERSE_PATTERN = make_escapes_pattern(_SQUOTE_STRING_REVERSE_ESCAPES)
+DQUOTE_STRING_ESCAPE = CombinedEscapes(
+    [DUPLICATE_DOUBLE_QUOTE_ESCAPE, SINGLE_CHAR_SLASH_ESCAPE]
+)
+SQUOTE_STRING_ESCAPE = CombinedEscapes(
+    [DUPLICATE_SINGLE_QUOTE_ESCAPE, SINGLE_CHAR_SLASH_ESCAPE]
+)
+CHAR_ESCAPE = CombinedEscapes(
+    [FiniteSet({"-": r"\-", "]": r"\]"}), SINGLE_CHAR_SLASH_ESCAPE]
+)
 
 # ebnf_priority
 
@@ -129,21 +127,19 @@ def to_ebnf(self: String) -> str:
 
     if dquote_count < squote_count:
         quote = '"'
-        pattern = _DQUOTE_STRING_PATTERN
-        escapes = _DQUOTE_STRING_ESCAPES
+        escape = DQUOTE_STRING_ESCAPE
     else:
         quote = "'"
-        pattern = _SQUOTE_STRING_PATTERN
-        escapes = _SQUOTE_STRING_ESCAPES
+        escape = SQUOTE_STRING_ESCAPE
 
-    escaped = replace_escapes(pattern, escapes, self.value)
+    escaped = escape.serialize(self.value)
     return quote + escaped + quote
 
 
 @multimethod
 def to_ebnf(self: Char) -> str:
     ch = self.char
-    return _CHAR_ESCAPES.get(ch, ch)
+    return CHAR_ESCAPE.serialize(ch)
 
 
 @multimethod
@@ -317,13 +313,11 @@ class EbnfVisitor(Visitor):
         quote = token[0]
         value = token[1:-1]
         if quote == '"':
-            escapes = _DQUOTE_STRING_REVERSE_ESCAPES
-            pattern = _DQUOTE_STRING_REVERSE_PATTERN
+            escape = DQUOTE_STRING_ESCAPE
         else:
-            escapes = _SQUOTE_STRING_REVERSE_ESCAPES
-            pattern = _SQUOTE_STRING_REVERSE_PATTERN
+            escape = SQUOTE_STRING_ESCAPE
 
-        value = replace_escapes(pattern, escapes, value)
+        value = escape.parse(value)
         return String(value)
 
     def visit_charset(self, *tokens):
@@ -334,7 +328,7 @@ class EbnfVisitor(Visitor):
         return group
 
     def visit_CHARSET_CHAR(self, token):
-        ch = _CHAR_REVERSE_ESCAPES.get(token, token)
+        ch = CHAR_ESCAPE.parse(token)
         return Char(ch)
 
     def visit_char_range(self, start, _, end):
