@@ -1,38 +1,36 @@
 import re
 
-from attrs import field, frozen
-from attrs.validators import deep_iterable, instance_of, min_len
 
-
-@frozen
 class Escape:
-    _serializer_pattern: str = field(init=False)
-    _parser_pattern: str = field(init=False)
+    def __init__(self, serializer_pattern, parser_pattern):
+        self.serializer_pattern = serializer_pattern
+        self.parser_pattern = parser_pattern
 
-    def _set_patterns(self, serializer_pattern, parser_pattern):
-        object.__setattr__(self, "_serializer_pattern", serializer_pattern)
-        object.__setattr__(self, "_parser_pattern", parser_pattern)
+    def serializer_replacer(self, m):
+        raise NotImplementedError(
+            f"{type(self).__name__}.serializer_replacer not implemented"
+        )
+
+    def parser_replacer(self, m):
+        raise NotImplementedError(
+            f"{type(self).__name__}.parser_replacer not implemented"
+        )
 
     def serialize(self, text):
-        return re.sub(self._serializer_pattern, self.serializer_replacer, text)
+        return re.sub(self.serializer_pattern, self.serializer_replacer, text)
 
     def parse(self, text):
-        return re.sub(self._parser_pattern, self.parser_replacer, text)
+        return re.sub(self.parser_pattern, self.parser_replacer, text)
 
 
-@frozen
 class FiniteSet(Escape):
-    escapes: dict = field(validator=instance_of(dict))
+    def __init__(self, escapes):
+        self.escapes = escapes
+        self.reversed_escapes = {escape: text for text, escape in escapes.items()}
 
-    _reversed_escapes: dict = field(init=False, factory=dict)
-
-    def __attrs_post_init__(self):
-        serializer_pattern = "|".join(re.escape(text) for text in self.escapes)
-        parser_pattern = "|".join(re.escape(escape) for escape in self.escapes.values())
-        self._set_patterns(serializer_pattern, parser_pattern)
-
-        for text, escape in self.escapes.items():
-            self._reversed_escapes[escape] = text
+        serializer_pattern = "|".join(re.escape(text) for text in escapes)
+        parser_pattern = "|".join(re.escape(escape) for escape in escapes.values())
+        super().__init__(serializer_pattern, parser_pattern)
 
     def serializer_replacer(self, m):
         text = m.group()
@@ -42,27 +40,22 @@ class FiniteSet(Escape):
 
     def parser_replacer(self, m):
         escape = m.group()
-        if text := self._reversed_escapes.get(escape):
+        if text := self.reversed_escapes.get(escape):
             return text
         return escape
 
 
-@frozen
 class DuplicateQuote(FiniteSet):
     def __init__(self, quote):
         super().__init__({quote: quote + quote})
 
 
-@frozen
 class CombinedEscapes(Escape):
-    sub_escapes: tuple[Escape, ...] = field(
-        converter=tuple, validator=[min_len(2), deep_iterable(instance_of(Escape))]
-    )
-
-    def __attrs_post_init__(self):
-        serializer_pattern = "|".join(e._serializer_pattern for e in self.sub_escapes)
-        parser_pattern = "|".join(e._parser_pattern for e in self.sub_escapes)
-        self._set_patterns(serializer_pattern, parser_pattern)
+    def __init__(self, sub_escapes):
+        self.sub_escapes = sub_escapes
+        serializer_pattern = "|".join(e.serializer_pattern for e in self.sub_escapes)
+        parser_pattern = "|".join(e.parser_pattern for e in self.sub_escapes)
+        super().__init__(serializer_pattern, parser_pattern)
 
     def serializer_replacer(self, m):
         for e in self.sub_escapes:
