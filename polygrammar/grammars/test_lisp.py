@@ -108,6 +108,27 @@ def test_parse_lisp_data(text, data):
     assert lisp_str(data) == text
 
 
+@pytest.mark.parametrize(
+    "text, value, metadata",
+    [
+        ("x", Symbol("x"), {}),
+        ("#a x", Symbol("x"), {Symbol("a"): True}),
+        ("#b x", Symbol("x"), {Symbol("b"): True}),
+        ("#a #b x", Symbol("x"), {Symbol("a"): True, Symbol("b"): True}),
+        ("#(a b) x", Symbol("x"), {Symbol("a"): Symbol("b")}),
+        (
+            "#(a b) #(c d) x",
+            Symbol("x"),
+            {Symbol("a"): Symbol("b"), Symbol("c"): Symbol("d")},
+        ),
+    ],
+)
+def test_parse_annotation(text, value, metadata):
+    parsed = parse_lisp_data(text)
+    assert parsed == value
+    assert parsed.metadata == metadata
+
+
 def test_parse_lisp_grammar():
     grammar = parse_lisp_grammar(LISP_GRAMMAR_STR)
     assert grammar == LISP_GRAMMAR
