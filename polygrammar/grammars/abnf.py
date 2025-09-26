@@ -1,8 +1,8 @@
-from polygrammar.grammars.lisp import parse_lisp
+from polygrammar.grammars.lisp import parse_lisp_grammar
 from polygrammar.model import *
 from polygrammar.recursive_parser import Parser
 
-ABNF_GRAMMAR = parse_lisp(
+ABNF_GRAMMAR = parse_lisp_grammar(
     r'''
     (grammar
         (rule rulelist (| rule (cat (* WSP) c_nl)))

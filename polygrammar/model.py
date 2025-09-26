@@ -1,3 +1,5 @@
+from collections.abc import Mapping
+
 from attrs import field, frozen
 from attrs.validators import (
     and_,
@@ -49,7 +51,20 @@ def to_symbol(x):
 
 @frozen
 class Expr:
-    pass
+    __meta__: list = field(init=False, eq=False, hash=False, factory=list)
+
+    @property
+    def metadata(self):
+        d = {}
+        for x in self.__meta__:
+            match x:
+                case [k, v]:
+                    d[k] = v
+                case Mapping():
+                    d.update(x)
+                case _:
+                    d[x] = True
+        return d
 
 
 @frozen

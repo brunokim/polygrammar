@@ -1,11 +1,20 @@
-from polygrammar.grammars.lisp import LISP_GRAMMAR, lisp_str, parse_lisp, to_lisp
+import pytest
+
+from polygrammar.grammars.lisp import (
+    LISP_GRAMMAR,
+    lisp_str,
+    parse_lisp_data,
+    parse_lisp_grammar,
+    to_lisp,
+)
 
 LISP_GRAMMAR_STR = r'''
 (grammar
   ; This is a generic Lisp-like grammar, allowing nested list expressions.
   ; The only terminals are symbols and strings.
-  (rule terms _ (* term _))
-  (rule term "(" _ value (* _1 value) _ ")")
+  (rule values _ (* annotated_value _))
+  (rule term "(" _ (? annotated_value (* _1 annotated_value) _) ")")
+  (rule annotated_value (* "#" value _) value)
   (rule value (| SYMBOL STRING term))
 
   ; Symbol syntax inherits from C, which is the least-common denominator for most programming languages.
@@ -40,13 +49,25 @@ LISP_GRAMMAR_STR = r'''
 '''
 
 
-def test_parse_lisp():
-    grammar = parse_lisp(LISP_GRAMMAR_STR)
+@pytest.mark.parametrize(
+    "text, data",
+    [
+        ("()", ()),
+        ('"abc"', "abc"),
+    ],
+)
+def test_parse_lisp_data(text, data):
+    assert parse_lisp_data(text) == data
+    assert lisp_str(data) == text
+
+
+def test_parse_lisp_grammar():
+    grammar = parse_lisp_grammar(LISP_GRAMMAR_STR)
     assert grammar == LISP_GRAMMAR
 
 
 def test_self_parse():
     data = to_lisp(LISP_GRAMMAR)
     text = lisp_str(data)
-    g = parse_lisp(text)
+    g = parse_lisp_grammar(text)
     assert g == LISP_GRAMMAR

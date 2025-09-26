@@ -8,7 +8,7 @@ from polygrammar.grammars.escapes import (
     CombinedEscapes,
     SingleCharBackslash,
 )
-from polygrammar.grammars.lisp import parse_lisp
+from polygrammar.grammars.lisp import parse_lisp_grammar
 from polygrammar.model import *
 from polygrammar.recursive_parser import Parser
 
@@ -175,7 +175,7 @@ def to_ebnf(self: Grammar) -> str:
     return " ;\n".join(rules) + " ;"
 
 
-EBNF_GRAMMAR = parse_lisp(
+EBNF_GRAMMAR = parse_lisp_grammar(
     r'''
     (grammar
       (rule grammar _ (+ rule _ ";" _))

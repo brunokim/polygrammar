@@ -130,23 +130,35 @@ def to_lisp(self: Grammar):
     return ("grammar",) + tuple(to_lisp(rule) for rule in self.rules)
 
 
+# Format Lisp data
+
 MAX_WIDTH = 80
 
 
-def lisp_str(obj, level=1):
+def lisp_str(obj):
     if isinstance(obj, str):
         content = ESCAPE.serialize(obj)
         return f'"{content}"'
     if not isinstance(obj, tuple):
         return repr(obj)
+    if len(obj) == 0:
+        return "()"
+    if len(obj) == 1:
+        return f"({lisp_str(obj[0])})"
+
     name, *args = obj
-    args_str = " ".join(lisp_str(x, level) for x in args)
-    has_newline = "\n" in args_str
-    within_width = len(args_str) < MAX_WIDTH - level * 2
-    if has_newline or not within_width:
-        indent = "\n" + (level * "  ")
-        args_str = indent + indent.join(lisp_str(x, level + 1) for x in args)
-    return f"({name} {args_str})"
+    strs = [lisp_str(x) for x in args]
+
+    has_newline = any("\n" in arg for arg in strs)
+    width = sum(len(arg) + 1 for arg in strs) + len(name) + 2 - 1
+    if has_newline or width > MAX_WIDTH:
+        sep = "\n  "
+        strs = (s.replace("\n", sep) for s in strs)
+    else:
+        sep = " "
+
+    args_str = sep + sep.join(strs)
+    return f"({name}{args_str})"
 
 
 # Grammar, visitor, parser
@@ -155,6 +167,7 @@ symbol = Symbol
 string = String
 alt = Alt.create
 cat = Cat.create
+optional = Optional.create
 zero_or_more = ZeroOrMore.create
 one_or_more = OneOrMore.create
 charset = Charset.create
@@ -165,14 +178,19 @@ grammar = Grammar.create
 
 
 LISP_GRAMMAR = grammar(
-    terms=cat(symbol("_"), zero_or_more(symbol("term"), symbol("_"))),
+    values=cat(symbol("_"), zero_or_more(symbol("annotated_value"), symbol("_"))),
     term=cat(
         string("("),
         symbol("_"),
-        symbol("value"),
-        zero_or_more(symbol("_1"), symbol("value")),
-        symbol("_"),
+        optional(
+            symbol("annotated_value"),
+            zero_or_more(symbol("_1"), symbol("annotated_value")),
+            symbol("_"),
+        ),
         string(")"),
+    ),
+    annotated_value=cat(
+        zero_or_more("#", symbol("value"), symbol("_")), symbol("value")
     ),
     value=alt(symbol("SYMBOL"), symbol("STRING"), symbol("term")),
     SYMBOL=alt(symbol("c_symbol"), symbol("operator")),
@@ -203,17 +221,18 @@ LISP_GRAMMAR = grammar(
 
 
 class LispVisitor(Visitor):
-    def visit_terms(self, *terms):
-        return terms
+    def visit_values(self, *values):
+        return values
 
     def visit_term(self, *values):
-        name, *args = values[1:-1]  # Remove parenthesis
-        if isinstance(name, Symbol):
-            name = name.name
-        cls = lisp_name[name]
-        if name in {"symbol", "string", "char"}:
-            return cls(*args)
-        return cls.create(*args)
+        return values[1:-1]  # Remove parenthesis
+
+    def visit_annotated_value(self, *values):
+        annotations = values[:-1]
+        value = values[-1]
+        for i in range(1, len(annotations), 2):
+            value.__meta__.append(annotations[i])
+        return value
 
     def visit_value(self, value):
         return value
@@ -227,10 +246,30 @@ class LispVisitor(Visitor):
         return value
 
 
-PARSER = Parser(LISP_GRAMMAR, LispVisitor())
+class LispGrammarVisitor(LispVisitor):
+    def visit_term(self, *values):
+        values = super().visit_term(*values)
+        match values:
+            case [Symbol(name) | name, *args] if name in lisp_name:
+                cls = lisp_name[name]
+                if name in {"symbol", "string", "char"}:
+                    return cls(*args)
+                return cls.create(*args)
+            case _:
+                return values
 
 
-def parse_lisp(text):
-    (node,) = PARSER.first_full_parse(text)
+DATA_PARSER = Parser(LISP_GRAMMAR, LispVisitor())
+GRAMMAR_PARSER = Parser(LISP_GRAMMAR, LispGrammarVisitor())
+
+
+def parse_lisp_grammar(text):
+    (node,) = GRAMMAR_PARSER.first_full_parse(text)
+    (grammar,) = node
+    return grammar
+
+
+def parse_lisp_data(text):
+    (node,) = DATA_PARSER.first_full_parse(text)
     (grammar,) = node
     return grammar
