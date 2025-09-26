@@ -1,3 +1,5 @@
+from textwrap import dedent
+
 import pytest
 
 from polygrammar.grammars.lisp import (
@@ -7,6 +9,7 @@ from polygrammar.grammars.lisp import (
     parse_lisp_grammar,
     to_lisp,
 )
+from polygrammar.model import Symbol
 
 LISP_GRAMMAR_STR = r'''
 (grammar
@@ -54,6 +57,50 @@ LISP_GRAMMAR_STR = r'''
     [
         ("()", ()),
         ('"abc"', "abc"),
+        ("abc", Symbol("abc")),
+        ("()", ()),
+        ("(a b c)", (Symbol("a"), Symbol("b"), Symbol("c"))),
+        (
+            dedent(
+                """\
+                ("long"
+                  "long"
+                  ("long"
+                    "long"
+                    "long"
+                    "long"
+                    "long"
+                    ("long" "long" "long" "long" "long" "long")
+                    "long"
+                    "long"
+                    "long"
+                    "long")
+                  "long"
+                  "long"
+                  "args"
+                  "list")"""
+            ),
+            (
+                "long",
+                "long",
+                (
+                    "long",
+                    "long",
+                    "long",
+                    "long",
+                    "long",
+                    ("long", "long", "long", "long", "long", "long"),
+                    "long",
+                    "long",
+                    "long",
+                    "long",
+                ),
+                "long",
+                "long",
+                "args",
+                "list",
+            ),
+        ),
     ],
 )
 def test_parse_lisp_data(text, data):

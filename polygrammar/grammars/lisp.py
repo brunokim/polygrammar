@@ -10,7 +10,7 @@ from polygrammar.grammars.escapes import (
 from polygrammar.model import *
 from polygrammar.recursive_parser import Parser
 
-__all__ = ["parse_lisp", "PARSER", "LISP_GRAMMAR", "LispVisitor"]
+__all__ = ["parse_lisp_data", "parse_lisp_grammar", "LISP_GRAMMAR"]
 
 
 # Escapes
@@ -22,6 +22,13 @@ ESCAPE = CombinedEscapes(
         UNICODE_BACKSLASH_ESCAPE,
     ]
 )
+
+
+#         parse_data       parse_grammar
+# .--------.-----> .--------.-----> .---------.
+# |  text  |       |  lisp  |       | grammar |
+# '--------' <-----'--------' <-----'---------'
+#          lisp_str          to_lisp
 
 # to_lisp
 
@@ -56,78 +63,78 @@ def to_lisp(self: object):
 
 
 @multimethod
-def to_lisp(self: Alt):
-    return ("alt",) + tuple(to_lisp(expr) for expr in self.exprs)
-
-
-@multimethod
-def to_lisp(self: Cat):
-    return ("cat",) + tuple(to_lisp(expr) for expr in self.exprs)
-
-
-@multimethod
-def to_lisp(self: Repeat):
-    return ("repeat", to_lisp(self.expr), self.min, self.max)
-
-
-@multimethod
-def to_lisp(self: Optional):
-    return ("optional", to_lisp(self.expr))
-
-
-@multimethod
-def to_lisp(self: ZeroOrMore):
-    return ("zero_or_more", to_lisp(self.expr))
-
-
-@multimethod
-def to_lisp(self: OneOrMore):
-    return ("one_or_more", to_lisp(self.expr))
-
-
-@multimethod
 def to_lisp(self: Symbol):
-    return ("symbol", self.name)
+    return self
 
 
 @multimethod
 def to_lisp(self: String):
-    return ("string", self.value)
+    return self.value
+
+
+@multimethod
+def to_lisp(self: Alt):
+    return (Symbol("alt"),) + tuple(to_lisp(expr) for expr in self.exprs)
+
+
+@multimethod
+def to_lisp(self: Cat):
+    return (Symbol("cat"),) + tuple(to_lisp(expr) for expr in self.exprs)
+
+
+@multimethod
+def to_lisp(self: Repeat):
+    return (Symbol("repeat"), to_lisp(self.expr), self.min, self.max)
+
+
+@multimethod
+def to_lisp(self: Optional):
+    return (Symbol("optional"), to_lisp(self.expr))
+
+
+@multimethod
+def to_lisp(self: ZeroOrMore):
+    return (Symbol("zero_or_more"), to_lisp(self.expr))
+
+
+@multimethod
+def to_lisp(self: OneOrMore):
+    return (Symbol("one_or_more"), to_lisp(self.expr))
 
 
 @multimethod
 def to_lisp(self: Char):
-    return ("char", self.char)
+    return (Symbol("char"), self.char)
 
 
 @multimethod
 def to_lisp(self: CharRange):
-    return ("char_range", to_lisp(self.start), to_lisp(self.end))
+    return (Symbol("char_range"), to_lisp(self.start), to_lisp(self.end))
 
 
 @multimethod
 def to_lisp(self: Charset):
-    return ("charset",) + tuple(to_lisp(g) for g in self.groups)
+    return (Symbol("charset"),) + tuple(to_lisp(g) for g in self.groups)
 
 
 @multimethod
 def to_lisp(self: Diff):
-    return ("diff", to_lisp(self.base), to_lisp(self.diff))
+    return (Symbol("diff"), to_lisp(self.base), to_lisp(self.diff))
 
 
 @multimethod
 def to_lisp(self: CharsetDiff):
-    return ("charset_diff", to_lisp(self.base), to_lisp(self.diff))
+    return (Symbol("charset_diff"), to_lisp(self.base), to_lisp(self.diff))
 
 
 @multimethod
 def to_lisp(self: Rule):
-    return ("rule", to_lisp(self.name), to_lisp(self.expr))
+    return (Symbol("rule"), to_lisp(self.name), to_lisp(self.expr))
 
 
 @multimethod
 def to_lisp(self: Grammar):
-    return ("grammar",) + tuple(to_lisp(rule) for rule in self.rules)
+    return (Symbol("grammar"),) + tuple(to_lisp(rule) for rule in self.rules)
 
 
 # Format Lisp data
@@ -139,26 +146,23 @@ def lisp_str(obj):
     if isinstance(obj, str):
         content = ESCAPE.serialize(obj)
         return f'"{content}"'
+    if isinstance(obj, Symbol):
+        return obj.name
     if not isinstance(obj, tuple):
         return repr(obj)
-    if len(obj) == 0:
-        return "()"
-    if len(obj) == 1:
-        return f"({lisp_str(obj[0])})"
 
-    name, *args = obj
-    strs = [lisp_str(x) for x in args]
+    args = [lisp_str(x) for x in obj]
 
-    has_newline = any("\n" in arg for arg in strs)
-    width = sum(len(arg) + 1 for arg in strs) + len(name) + 2 - 1
+    has_newline = any("\n" in arg for arg in args)
+    width = sum(len(arg) + 1 for arg in args) + 2 - 1
     if has_newline or width > MAX_WIDTH:
         sep = "\n  "
-        strs = (s.replace("\n", sep) for s in strs)
+        args = (s.replace("\n", sep) for s in args)
     else:
         sep = " "
 
-    args_str = sep + sep.join(strs)
-    return f"({name}{args_str})"
+    args_str = sep.join(args)
+    return f"({args_str})"
 
 
 # Grammar, visitor, parser
