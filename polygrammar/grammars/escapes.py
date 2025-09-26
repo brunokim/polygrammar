@@ -17,63 +17,43 @@ class Escape:
         )
 
     def serialize(self, text):
+        if self.serializer_pattern is None:
+            return text
         return re.sub(self.serializer_pattern, self.serializer_replacer, text)
 
     def parse(self, text):
         return re.sub(self.parser_pattern, self.parser_replacer, text)
 
 
-class DuplicateQuote(Escape):
+class EnumeratedSet(Escape):
+    def __init__(self, mapping):
+        self.mapping = mapping
+        self.reversed_mapping = {v: k for k, v in mapping.items()}
+
+        serializer_pattern = "|".join(re.escape(k) for k in self.mapping)
+        parser_pattern = "|".join(re.escape(v) for v in self.reversed_mapping)
+        super().__init__(serializer_pattern, parser_pattern)
+
+    def serializer_replacer(self, m):
+        return self.mapping[m.group()]
+
+    def parser_replacer(self, m):
+        return self.reversed_mapping[m.group()]
+
+
+class DuplicateQuote(EnumeratedSet):
     def __init__(self, quote):
-        self.quote = quote
-        super().__init__(re.escape(quote), re.escape(quote + quote))
-
-    def serializer_replacer(self, m):
-        ch = m.group()
-        if ch == self.quote:
-            return self.quote + self.quote
-        return ch
-
-    def parser_replacer(self, m):
-        text = m.group()
-        if text == self.quote + self.quote:
-            return self.quote
-        return text
+        super().__init__({quote: quote + quote})
 
 
-class SingleCharBackslash(Escape):
-    def __init__(self, char_escapes, unknown_escapes="remove_slash"):
-        if unknown_escapes not in {"ignore", "error", "remove_slash"}:
-            raise ValueError(
-                "unknown_escapes must be one of 'ignore', 'error', or 'passthrough'"
-            )
-        self.unknown_escapes = unknown_escapes
-
-        self.escapes = {ch: "\\" + escape for ch, escape in char_escapes.items()}
-        self.reversed_escapes = {escape: ch for ch, escape in self.escapes.items()}
-
-        super().__init__(r"(?s:.)", r"\\(.)")
-
-    def serializer_replacer(self, m):
-        ch = m.group()
-        if escape := self.escapes.get(ch):
-            return escape
-        return ch
-
-    def parser_replacer(self, m):
-        escape = m.group()
-        if ch := self.reversed_escapes.get(escape):
-            return ch
-        if escape[0] != "\\":
-            return escape
-
-        match self.unknown_escapes:
-            case "ignore":
-                return escape
-            case "error":
-                raise ValueError(f"Unknown escape sequence: {escape!r}")
-            case "remove_slash":
-                return escape[1]
+class SingleCharBackslash(EnumeratedSet):
+    def __init__(self, char_escapes):
+        for ch, escape in char_escapes.items():
+            if len(ch) != 1 or len(escape) != 1:
+                raise ValueError(
+                    "char_escapes must map single characters to single characters, got {ch!r}: {escape!r}"
+                )
+        super().__init__({ch: "\\" + escape for ch, escape in char_escapes.items()})
 
 
 class OctalCharacterCode(Escape):
@@ -99,8 +79,6 @@ class Unicode8CharacterCode(Escape):
         return rf"\x{ord(ch):02x}"
 
     def parser_replacer(self, m):
-        if not m.group().startswith("\\x"):
-            return m.group()
         code_str = m.group(1)
         code = int(code_str, base=16)
         return chr(code)
@@ -115,8 +93,6 @@ class Unicode16CharacterCode(Escape):
         return rf"\u{ord(ch):04x}"
 
     def parser_replacer(self, m):
-        if not m.group().startswith("\\u"):
-            return m.group()
         code_str = m.group(1)
         code = int(code_str, base=16)
         return chr(code)
@@ -131,33 +107,58 @@ class Unicode32CharacterCode(Escape):
         return rf"\U{ord(ch):08x}"
 
     def parser_replacer(self, m):
-        if not m.group().startswith("\\U"):
-            return m.group()
         code_str = m.group(1)
         code = int(code_str, base=16)
         return chr(code)
 
 
+class UnknownSingleCharBackslash(Escape):
+    def __init__(self, unknown_escapes="remove_slash"):
+        if unknown_escapes not in {"ignore", "remove_slash", "error"}:
+            raise ValueError(
+                "unknown_escapes must be one of 'ignore', 'remove_slash', or 'error'"
+            )
+        self.unknown_escapes = unknown_escapes
+        super().__init__(None, r"\\(.)")
+
+    def parser_replacer(self, m):
+        if self.unknown_escapes == "ignore":
+            return m.group()
+        if self.unknown_escapes == "error":
+            raise ValueError(f"Unknown escape sequence: {m.group()!r}")
+        assert self.unknown_escapes == "remove_slash"
+        ch = m.group(1)
+        return ch
+
+
 class CombinedEscapes(Escape):
     def __init__(self, sub_escapes):
         self.sub_escapes = sub_escapes
-        serializer_pattern = "|".join(e.serializer_pattern for e in self.sub_escapes)
+        serializer_pattern = "|".join(
+            e.serializer_pattern
+            for e in self.sub_escapes
+            if e.serializer_pattern is not None
+        )
         parser_pattern = "|".join(e.parser_pattern for e in self.sub_escapes)
         super().__init__(serializer_pattern, parser_pattern)
 
     def serializer_replacer(self, m):
+        text = m.group()
         for e in self.sub_escapes:
-            repl = e.serializer_replacer(m)
-            if repl != m.group():
-                return repl
-        return m.group()
+            if e.serializer_pattern is None:
+                continue
+            m = re.match(e.serializer_pattern, text)
+            if m is not None:
+                return e.serializer_replacer(m)
+        raise Exception("Should not be reached: {text!r} did not match any sub-escape")
 
     def parser_replacer(self, m):
+        text = m.group()
         for e in self.sub_escapes:
-            repl = e.parser_replacer(m)
-            if repl != m.group():
-                return repl
-        return m.group()
+            m = re.match(e.parser_pattern, text)
+            if m is not None:
+                return e.parser_replacer(m)
+        raise Exception("Should not be reached: {text!r} did not match any sub-escape")
 
 
 JSON_SINGLE_CHAR_ESCAPES = {

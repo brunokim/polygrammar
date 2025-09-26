@@ -4,7 +4,9 @@ from polygrammar.grammars.escapes import (
     DUPLICATE_DOUBLE_QUOTE_ESCAPE,
     DUPLICATE_SINGLE_QUOTE_ESCAPE,
     PYTHON_SINGLE_CHAR_ESCAPES,
+    CombinedEscapes,
     SingleCharBackslash,
+    UnknownSingleCharBackslash,
 )
 
 
@@ -40,7 +42,12 @@ def test_duplicate_single_quote(text, want):
 
 @pytest.fixture(scope="session")
 def python_single_char_escape():
-    return SingleCharBackslash(PYTHON_SINGLE_CHAR_ESCAPES)
+    return CombinedEscapes(
+        [
+            SingleCharBackslash(PYTHON_SINGLE_CHAR_ESCAPES),
+            UnknownSingleCharBackslash(unknown_escapes="remove_slash"),
+        ]
+    )
 
 
 @pytest.mark.parametrize(
