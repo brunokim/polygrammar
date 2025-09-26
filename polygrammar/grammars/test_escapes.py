@@ -6,6 +6,9 @@ from polygrammar.grammars.escapes import (
     PYTHON_SINGLE_CHAR_ESCAPES,
     CombinedEscapes,
     SingleCharBackslash,
+    Unicode8CharacterCode,
+    Unicode16CharacterCode,
+    Unicode32CharacterCode,
     UnknownSingleCharBackslash,
 )
 
@@ -73,3 +76,25 @@ def test_parse_single_char_slash_unknown(python_single_char_escape):
     want = "unknown escapes: [xuUpqN15dsS]"
     parsed = python_single_char_escape.parse(text)
     assert parsed == want
+
+
+def test_combined_escapes():
+    escape = CombinedEscapes(
+        [
+            DUPLICATE_DOUBLE_QUOTE_ESCAPE,
+            DUPLICATE_SINGLE_QUOTE_ESCAPE,
+            SingleCharBackslash(PYTHON_SINGLE_CHAR_ESCAPES),
+            Unicode8CharacterCode(),
+            Unicode16CharacterCode(),
+            Unicode32CharacterCode(),
+            UnknownSingleCharBackslash(unknown_escapes="remove_slash"),
+        ]
+    )
+
+    text = "abc ' \" \\ \n \u1234 \U00012345 \x7f"
+    serialized = "abc '' \"\" \\\\ \\n \\u1234 \\U00012345 \\x7f"
+    unknown = r" unknown: \p\q\N"
+    parsed = "abc ' \" \\ \n \u1234 \U00012345 \x7f unknown: pqN"
+
+    assert escape.serialize(text) == serialized
+    assert escape.parse(serialized + unknown) == parsed

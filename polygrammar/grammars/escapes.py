@@ -198,3 +198,11 @@ C_SINGLE_CHAR_ESCAPES = {
 
 DUPLICATE_DOUBLE_QUOTE_ESCAPE = DuplicateQuote('"')
 DUPLICATE_SINGLE_QUOTE_ESCAPE = DuplicateQuote("'")
+UNICODE_BACKSLASH_ESCAPE = CombinedEscapes(
+    [
+        Unicode8CharacterCode(),
+        Unicode16CharacterCode(),
+        Unicode32CharacterCode(),
+        UnknownSingleCharBackslash(unknown_escapes="remove_slash"),
+    ]
+)
