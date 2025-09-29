@@ -72,16 +72,8 @@ CTL = %x00-1F / %x7F
         ("%x41.42.43", String("ABC")),
         ("%x41-5A", Charset.create(CharRange.create("A", "Z"))),
         ("< prose  \\ text \"'&gt; >", String(" prose  \\ text \"'&gt; ")),
-        pytest.param(
-            "[ a b c ]",
-            Optional.create(Symbol("a"), Symbol("b"), Symbol("c")),
-            marks=[pytest.mark.xfail],
-        ),
-        pytest.param(
-            "( a b c )",
-            Cat.create(Symbol("a"), Symbol("b"), Symbol("c")),
-            marks=[pytest.mark.xfail],
-        ),
+        ("[ a b c ]", Optional.create(Symbol("a"), Symbol("b"), Symbol("c"))),
+        ("( a b c )", Cat.create(Symbol("a"), Symbol("b"), Symbol("c"))),
         ("(*a)", ZeroOrMore.create(Symbol("a"))),
         ("(1*a)", OneOrMore.create(Symbol("a"))),
         ("(1*2a)", Repeat.create(Symbol("a"), min=1, max=2)),

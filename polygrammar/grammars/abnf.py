@@ -27,8 +27,8 @@ ABNF_GRAMMAR = parse_lisp_grammar(
 
         ; Strings
         (rule char-val (| case-sensitive-string case-insensitive-string))
-        (rule case-sensitive-string "%s" quoted-string)
-        (rule case-insensitive-string (? "%i") quoted-string)
+        (rule case-sensitive-string "%s" #token quoted-string)
+        (rule case-insensitive-string (? "%i") #token quoted-string)
         (rule quoted-string DQUOTE (* (| (- (charset (char_range " " "~")) DQUOTE))) DQUOTE)
 
         ; Numeric values.
@@ -87,7 +87,7 @@ class AbnfVisitor(Visitor):
         name, defined_as, elements, _ = args
         rule = Rule(name, elements)
         if defined_as == "=/":
-            rule.is_incremental = True
+            rule.__metadata__.append(("incremental", True))
         return rule
 
     def visit_rulename(self, *tokens):
@@ -157,7 +157,8 @@ class AbnfVisitor(Visitor):
     def visit_char_val(self, arg):
         return arg
 
-    def visit_case_sensitive_string(self, _, arg):
+    def visit_case_sensitive_string(self, *args):
+        _, arg = args
         arg = String(arg)
         arg.__meta__.append(("case_sensitive", True))
         return arg
@@ -167,8 +168,8 @@ class AbnfVisitor(Visitor):
         arg.__meta__.append(("case_sensitive", False))
         return arg
 
-    def visit_quoted_string(self, *chars):
-        return "".join(chars[1:-1])
+    def visit_quoted_string(self, token):
+        return token[1:-1]
 
     def visit_num_val(self, _, arg):
         return arg

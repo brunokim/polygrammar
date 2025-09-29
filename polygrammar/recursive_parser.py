@@ -177,9 +177,9 @@ class ParseJob:
     def _parse_expr(self, state, expr, **kwargs):
         self._max_offset = max(self._max_offset, state.offset)
         meta = expr.metadata
-        if meta.get("_") or meta.get("ignore"):
+        if meta.get(Symbol("_")) or meta.get(Symbol("ignore")):
             kwargs["is_ignored"] = True
-        if meta.get("token"):
+        if meta.get(Symbol("token")):
             kwargs["is_token"] = True
         match expr:
             case Alt(exprs):
