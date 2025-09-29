@@ -57,7 +57,7 @@ class Parser:
         seen = set()
         for rule in self.grammar.rules:
             name = rule.name.name
-            method_name = f"visit_{name}"
+            method_name = "visit_" + name.replace("-", "_")
             if hasattr(self.visitor, method_name):
                 self._method_map[name] = getattr(self.visitor, method_name)
 
@@ -176,6 +176,11 @@ class ParseJob:
 
     def _parse_expr(self, state, expr, **kwargs):
         self._max_offset = max(self._max_offset, state.offset)
+        meta = expr.metadata
+        if meta.get("_") or meta.get("ignore"):
+            kwargs["is_ignored"] = True
+        if meta.get("token"):
+            kwargs["is_token"] = True
         match expr:
             case Alt(exprs):
                 yield from self._parse_alt(state, exprs, **kwargs)
