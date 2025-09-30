@@ -23,6 +23,7 @@ __all__ = [
     "Symbol",
     "String",
     "Char",
+    "EndOfFile",
     "CharRange",
     "Charset",
     "Diff",
@@ -189,6 +190,10 @@ class Char:
     char: str = field(validator=[instance_of(str), min_len(1), max_len(1)])
 
 
+class EndOfFile(Expr):
+    pass
+
+
 @frozen
 class CharRange:
     start: Char = field(validator=instance_of(Char))
@@ -250,9 +255,20 @@ class Rule:
     name: Symbol = field(validator=instance_of(Symbol))
     expr: Expr = field(validator=instance_of(Expr))
 
+    is_additional_cat: bool = field(default=False, validator=instance_of(bool))
+    is_additional_alt: bool = field(default=False, validator=instance_of(bool))
+
     @classmethod
-    def create(cls, name: str | Symbol, *exprs: Expr) -> "Rule":
-        return cls(to_symbol(name), Cat.create(*exprs))
+    def create(
+        cls,
+        name: str | Symbol,
+        *exprs: Expr,
+        is_additional_cat=False,
+        is_additional_alt=False,
+    ) -> "Rule":
+        return cls(
+            to_symbol(name), Cat.create(*exprs), is_additional_cat, is_additional_alt
+        )
 
 
 @frozen

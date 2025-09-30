@@ -1,6 +1,8 @@
+from textwrap import dedent
+
 import pytest
 
-from polygrammar.grammars.abnf import PARSER
+from polygrammar.grammars.abnf import PARSER, parse_abnf
 from polygrammar.model import *
 
 ABNF_GRAMMAR_STR = r"""
@@ -86,3 +88,38 @@ CTL = %x00-1F / %x7F
 def test_parse_abnf_expression(text, want):
     (got,) = PARSER.first_full_parse(text, start="element")
     assert got == want
+
+
+@pytest.mark.parametrize(
+    "text, want",
+    [
+        (
+            "foo = a b c",
+            Grammar(
+                [Rule.create("foo", Cat.create(Symbol("a"), Symbol("b"), Symbol("c")))]
+            ),
+        ),
+        (
+            dedent(
+                """\
+                foo = a b c
+                foo =/ d e f
+                """
+            ),
+            Grammar(
+                [
+                    Rule.create(
+                        "foo", Cat.create(Symbol("a"), Symbol("b"), Symbol("c"))
+                    ),
+                    Rule.create(
+                        "foo",
+                        Cat.create(Symbol("d"), Symbol("e"), Symbol("f")),
+                        is_additional_alt=True,
+                    ),
+                ]
+            ),
+        ),
+    ],
+)
+def test_parse_abnf(text, want):
+    assert parse_abnf(text) == want

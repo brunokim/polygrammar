@@ -62,6 +62,12 @@ class Parser:
                 self._method_map[name] = getattr(self.visitor, method_name)
 
             if name in self._rule_map:
+                if rule.is_additional_alt:
+                    self._rule_map[name] = Alt.create(self._rule_map[name], rule.expr)
+                    continue
+                if rule.is_additional_cat:
+                    self._rule_map[name] = Cat.create(self._rule_map[name], rule.expr)
+                    continue
                 raise ValueError(f"Duplicate rule name: {name}")
 
             seen |= symbols(rule.expr)
@@ -96,7 +102,7 @@ class Parser:
         has_full_match = False
         max_error_offset = -1
         for result, offset in self.parse(text, start, debug=debug):
-            if offset == len(text):
+            if offset >= len(text):
                 has_full_match = True
                 yield result
             elif offset > max_error_offset:
@@ -196,6 +202,8 @@ class ParseJob:
                 yield from self._parse_charset(state, groups, **kwargs)
             case Diff(base, diff):
                 yield from self._parse_diff(state, base, diff, **kwargs)
+            case EndOfFile():
+                yield from self._parse_end_of_file(state, **kwargs)
             case _:
                 raise NotImplementedError(f"Unknown expr type: {type(expr).__name__}")
 
@@ -279,3 +287,9 @@ class ParseJob:
                     self._debug(f"charset_diff: diff {diff} matched")
             except StopIteration:
                 yield st
+
+    def _parse_end_of_file(self, state, **kwargs):
+        if state.offset == len(self.text):
+            yield evolve(state, offset=state.offset + 1)
+        elif state.offset == self._debug_offset:
+            self._debug("EOF: not at end of file")

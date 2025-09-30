@@ -1,8 +1,10 @@
+from attrs import evolve
+
 from polygrammar.grammars.lisp import parse_lisp_grammar
 from polygrammar.model import *
 from polygrammar.recursive_parser import Parser
 
-ABNF_GRAMMAR = parse_lisp_grammar(
+STRICT_ABNF_GRAMMAR = parse_lisp_grammar(
     r'''
     (grammar
         ; Rules
@@ -12,7 +14,7 @@ ABNF_GRAMMAR = parse_lisp_grammar(
         (rule defined-as #_(* c-wsp) (| "=" "=/") #_(* c-wsp))
 
         ; Expressions
-        (rule elements alternation (* WSP))
+        (rule elements alternation #_(* WSP))
         (rule alternation
             concatenation
             (* #_(* c-wsp) "/" #_(* c-wsp) concatenation))
@@ -54,8 +56,9 @@ ABNF_GRAMMAR = parse_lisp_grammar(
 
         ; Whitespace
         (rule c-wsp (? c-nl) WSP)
-        (rule c-nl (| comment CRLF))
-        (rule comment ";" (* (| VCHAR WSP)) CRLF)
+        (rule c-nl (| comment nl))
+        (rule nl CRLF)
+        (rule comment ";" (* (| VCHAR WSP)) nl)
 
         ; ASCII character sets
         (rule WSP (charset " " "\t"))
@@ -81,13 +84,16 @@ ABNF_GRAMMAR = parse_lisp_grammar(
 
 class AbnfVisitor(Visitor):
     def visit_rulelist(self, *args):
-        return Grammar(*args)
+        return Grammar(args)
+
+    def visit_elements(self, *args):
+        return args[0]
 
     def visit_rule(self, *args):
         name, defined_as, elements, _ = args
         rule = Rule(name, elements)
         if defined_as == "=/":
-            rule.__metadata__.append(("incremental", True))
+            rule = evolve(rule, is_additional_alt=True)
         return rule
 
     def visit_rulename(self, *tokens):
@@ -214,9 +220,22 @@ class AbnfVisitor(Visitor):
         return String("".join(chars[1:-1]))
 
 
+# Allow LF as a newline in addition to CRLF.
+ABNF_GRAMMAR = evolve(
+    STRICT_ABNF_GRAMMAR,
+    rules=STRICT_ABNF_GRAMMAR.rules
+    + (
+        Rule.create(
+            "nl", Alt.create(String("\n"), EndOfFile()), is_additional_alt=True
+        ),
+    ),
+)
+
+STRICT_PARSER = Parser(STRICT_ABNF_GRAMMAR, AbnfVisitor())
 PARSER = Parser(ABNF_GRAMMAR, AbnfVisitor())
 
 
-def parse_abnf(text: str) -> Grammar:
+def parse_abnf(text: str, strict_newlines=False):
+    parser = STRICT_PARSER if strict_newlines else PARSER
     (node,) = parser.first_full_parse(text)
     return node

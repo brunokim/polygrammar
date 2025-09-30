@@ -37,6 +37,7 @@ lisp_name = {
     "symbol": Symbol,
     "string": String,
     "char": Char,
+    "end_of_file": EndOfFile,
     "alt": Alt,
     "|": Alt,
     "cat": Cat,
@@ -256,7 +257,7 @@ class LispGrammarVisitor(LispVisitor):
         match values:
             case [Symbol(name) | name, *args] if name in lisp_name:
                 cls = lisp_name[name]
-                if name in {"symbol", "string", "char"}:
+                if name in {"symbol", "string", "char", "end_of_file"}:
                     return cls(*args)
                 return cls.create(*args)
             case _:
