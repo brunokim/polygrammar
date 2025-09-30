@@ -1,8 +1,126 @@
+import re
+
 from attrs import evolve
+from multimethod import multimethod
 
 from polygrammar.grammars.lisp import parse_lisp_grammar
 from polygrammar.model import *
 from polygrammar.recursive_parser import Parser
+
+# abnf_priority
+
+
+@multimethod
+def abnf_priority(self: object) -> int:
+    return 0
+
+
+@multimethod
+def abnf_priority(self: Alt) -> int:
+    return 100
+
+
+@multimethod
+def abnf_priority(self: Cat) -> int:
+    return 50
+
+
+@multimethod
+def abnf_priority(self: Repeat) -> int:
+    return 25
+
+
+# to_abnf
+
+
+@multimethod
+def to_abnf(obj, parent_priority: int) -> str:
+    if abnf_priority(obj) > parent_priority:
+        return "(" + to_abnf(obj) + ")"
+    return to_abnf(obj)
+
+
+@multimethod
+def to_abnf(obj) -> str:
+    raise NotImplementedError(f"to_abnf not implemented for {type(obj)}")
+
+
+@multimethod
+def to_abnf(obj: Grammar) -> str:
+    return "\r\n".join(to_abnf(rule) for rule in obj.rules) + "\r\n"
+
+
+@multimethod
+def to_abnf(obj: Rule) -> str:
+    defined_as = "=/" if obj.is_additional_alt else "="
+    return f"{to_abnf(obj.name)} {defined_as} {to_abnf(obj.expr)}"
+
+
+@multimethod
+def to_abnf(obj: Symbol) -> str:
+    if not re.match(r"^[A-Za-z][A-Za-z0-9-]*$", obj.name):
+        raise ValueError(f"Invalid rulename: {obj.name}")
+    return obj.name
+
+
+@multimethod
+def to_abnf(obj: Cat):
+    return " ".join(to_abnf(expr, abnf_priority(obj)) for expr in obj.exprs)
+
+
+@multimethod
+def to_abnf(obj: Alt):
+    return " / ".join(to_abnf(expr, abnf_priority(obj)) for expr in obj.exprs)
+
+
+@multimethod
+def to_abnf(obj: String):
+    if re.match(r"[ -!#-~]*\Z", obj.value):
+        if obj.metadata.get("case_sensitive"):
+            return f'%s"{obj.value}"'
+        return f'"{obj.value}"'
+    return "%x" + ".".join(to_hex(c) for c in obj.value)
+
+
+@multimethod
+def to_abnf(obj: Repeat):
+    min = str(obj.min) if obj.min > 0 else ""
+    max = str(obj.max) if obj.max is not None else ""
+    expr = to_abnf(obj.expr, abnf_priority(obj))
+
+    if not min and not max:
+        return f"*{expr}"
+    if min == max:
+        return f"{min}{expr}"
+    return f"{min}*{max}{expr}"
+
+
+@multimethod
+def to_abnf(obj: Optional):
+    return f"[ {to_abnf(obj.expr)} ]"
+
+
+@multimethod
+def to_abnf(obj: Charset):
+    parts = [to_abnf(g) for g in obj.groups]
+    if len(parts) == 1:
+        return parts[0]
+    return "(" + " / ".join(parts) + ")"
+
+
+@multimethod
+def to_abnf(obj: Char):
+    return "%x" + to_hex(obj.char)
+
+
+@multimethod
+def to_abnf(obj: CharRange):
+    return "%x" + to_hex(obj.start.char) + "-" + to_hex(obj.end.char)
+
+
+def to_hex(ch):
+    return f"{ord(ch):02X}"
+
 
 STRICT_ABNF_GRAMMAR = parse_lisp_grammar(
     r'''
@@ -212,7 +330,7 @@ class AbnfVisitor(Visitor):
                 chars.append(chr(int(num, base)))
                 sep = ch
                 num = ""
-                ch = next(args, None)
+                ch = next(args)
 
         if sep in {".", ""}:
             return String("".join(chars))

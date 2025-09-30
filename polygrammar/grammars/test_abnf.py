@@ -2,7 +2,7 @@ from textwrap import dedent
 
 import pytest
 
-from polygrammar.grammars.abnf import PARSER, STRICT_ABNF_GRAMMAR, parse_abnf
+from polygrammar.grammars.abnf import PARSER, STRICT_ABNF_GRAMMAR, parse_abnf, to_abnf
 from polygrammar.model import *
 
 ABNF_GRAMMAR_STR = r"""
@@ -140,3 +140,8 @@ def test_parse_abnf(text, want):
 
 def test_parse_abnf_grammar():
     assert parse_abnf(ABNF_GRAMMAR_STR) == STRICT_ABNF_GRAMMAR
+
+
+def test_self_parse():
+    text = to_abnf(STRICT_ABNF_GRAMMAR)
+    assert parse_abnf(text, strict_newlines=True) == STRICT_ABNF_GRAMMAR
