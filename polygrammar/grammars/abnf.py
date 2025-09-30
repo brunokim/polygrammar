@@ -86,9 +86,6 @@ class AbnfVisitor(Visitor):
     def visit_rulelist(self, *args):
         return Grammar(args)
 
-    def visit_elements(self, *args):
-        return args[0]
-
     def visit_rule(self, *args):
         name, defined_as, elements, _ = args
         rule = Rule(name, elements)
@@ -101,6 +98,9 @@ class AbnfVisitor(Visitor):
 
     def visit_defined_as(self, token):
         return token
+
+    def visit_elements(self, arg):
+        return arg
 
     def visit_alternation(self, *args):
         return Alt.create(*(args[i] for i in range(0, len(args), 2)))
@@ -220,7 +220,7 @@ class AbnfVisitor(Visitor):
         return String("".join(chars[1:-1]))
 
 
-# Allow LF as a newline in addition to CRLF.
+# Allow LF and EOF as a newline, in addition to CRLF.
 ABNF_GRAMMAR = evolve(
     STRICT_ABNF_GRAMMAR,
     rules=STRICT_ABNF_GRAMMAR.rules

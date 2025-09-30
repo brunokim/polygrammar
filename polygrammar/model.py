@@ -52,7 +52,7 @@ def to_symbol(x):
 
 @frozen
 class Expr:
-    __meta__: list = field(init=False, eq=False, hash=False, factory=list)
+    __meta__: list = field(init=False, eq=False, hash=False, repr=False, factory=list)
 
     @property
     def metadata(self):

@@ -2,12 +2,12 @@ from textwrap import dedent
 
 import pytest
 
-from polygrammar.grammars.abnf import PARSER, parse_abnf
+from polygrammar.grammars.abnf import PARSER, STRICT_ABNF_GRAMMAR, parse_abnf
 from polygrammar.model import *
 
 ABNF_GRAMMAR_STR = r"""
 ; Rules
-rulelist = 1*( rule / (WSP* c-nl) )
+rulelist = 1*( rule / (*WSP c-nl) )
 rule = rulename defined-as elements c-nl
 rulename = ALPHA *( ALPHA / DIGIT / "-" )
 defined-as = *c-wsp ( "=" / "=/" ) *c-wsp
@@ -15,7 +15,7 @@ defined-as = *c-wsp ( "=" / "=/" ) *c-wsp
 ; Expressions
 elements = alternation *WSP
 alternation = concatenation *( *c-wsp "/" *c-wsp concatenation )
-concatenation = repetition *( c-wsp+ repetition )
+concatenation = repetition *( 1*c-wsp repetition )
 repetition = [ repeat ] element
 repeat = ( 1*DIGIT / ( *DIGIT "*" *DIGIT ) )
 element = ( rulename / group / option / char-val / num-val / prose-val )
@@ -119,7 +119,24 @@ def test_parse_abnf_expression(text, want):
                 ]
             ),
         ),
+        (
+            dedent(
+                """\
+                ; comment
+                foo = a b c ; comment
+                ; comment
+                """
+            ),
+            Grammar(
+                [Rule.create("foo", Cat.create(Symbol("a"), Symbol("b"), Symbol("c")))]
+            ),
+        ),
     ],
 )
 def test_parse_abnf(text, want):
     assert parse_abnf(text) == want
+
+
+@pytest.mark.xfail
+def test_parse_abnf_grammar():
+    assert parse_abnf(ABNF_GRAMMAR_STR) == STRICT_ABNF_GRAMMAR
