@@ -31,7 +31,12 @@ STRICT_ABNF_GRAMMAR = parse_lisp_grammar(
         (rule char-val (| case-sensitive-string case-insensitive-string))
         (rule case-sensitive-string "%s" #token quoted-string)
         (rule case-insensitive-string (? "%i") #token quoted-string)
-        (rule quoted-string DQUOTE (* (| (- (charset (char_range " " "~")) DQUOTE))) DQUOTE)
+        (rule quoted-string
+            DQUOTE
+            (* (alt
+                (charset (char_range " " "!"))
+                (charset (char_range "#" "~"))))
+            DQUOTE)
 
         ; Numeric values.
         (rule num-val "%" (| bin-val dec-val hex-val))
@@ -52,7 +57,7 @@ STRICT_ABNF_GRAMMAR = parse_lisp_grammar(
                 (cat "-" (+ HEXDIG)))))
 
         ; Prose placeholder.
-        (rule prose-val "<" (* (- (charset (char_range " " "~")) ">")) ">")
+        (rule prose-val "<" (* (alt (charset (char_range " " "=")) (charset (char_range "?" "~"))))  ">")
 
         ; Whitespace
         (rule c-wsp (? c-nl) WSP)
@@ -61,22 +66,22 @@ STRICT_ABNF_GRAMMAR = parse_lisp_grammar(
         (rule comment ";" (* (| VCHAR WSP)) nl)
 
         ; ASCII character sets
-        (rule WSP (charset " " "\t"))
-        (rule BIT (charset "0" "1"))
+        (rule WSP (alt " " "\t"))
+        (rule BIT (alt "0" "1"))
         (rule DIGIT (charset (char_range "0" "9")))
-        (rule HEXDIG (charset (char_range "0" "9") (char_range "A" "F")))
+        (rule HEXDIG (alt (charset (char_range "0" "9")) (charset (char_range "A" "F"))))
         (rule VCHAR (charset (char_range "!" "~")))
-        (rule ALPHA (charset (char_range "A" "Z") (char_range "a" "z")))
+        (rule ALPHA (alt (charset (char_range "A" "Z")) (charset (char_range "a" "z"))))
         (rule CR "\r")
         (rule LF "\n")
-        (rule CRLF "\r\n")
+        (rule CRLF CR LF)
         (rule HTAB "\t")
         (rule SP " ")
         (rule DQUOTE """")
         (rule LWSP (* (| WSP (cat CRLF WSP))))
-        (rule OCTET (charset (char_range "\x00" "\x7F")))
+        (rule OCTET (charset (char_range "\x00" "\xFF")))
         (rule CHAR (charset (char_range "\x01" "\x7F")))
-        (rule CTL (charset (char_range "\x00" "\x1F") "\x7F"))
+        (rule CTL (alt (charset (char_range "\x00" "\x1F")) "\x7F"))
     )
     '''
 )

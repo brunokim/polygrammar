@@ -35,12 +35,13 @@ dec-val = "d" 1*DIGIT [ 1*( "." 1*DIGIT ) / ( "-" 1*DIGIT ) ]
 hex-val = "x" 1*HEXDIG [ 1*( "." 1*HEXDIG ) / ( "-" 1*HEXDIG ) ]
 
 ; Prose placeholder.
-prose-val = "<" *( %x20-3E / %x40-7E ) ">"
+prose-val = "<" *( %x20-3D / %x3F-7E ) ">"
 
 ; Whitespace
 c-wsp = [ c-nl ] WSP
-c-nl = ( comment / CRLF )
-comment = ";" *( VCHAR / WSP ) CRLF
+c-nl = ( comment / nl )
+nl = CRLF
+comment = ";" *( VCHAR / WSP ) nl
 
 ; ASCII character sets
 WSP = %x20 / %x09
@@ -137,6 +138,5 @@ def test_parse_abnf(text, want):
     assert parse_abnf(text) == want
 
 
-@pytest.mark.xfail
 def test_parse_abnf_grammar():
     assert parse_abnf(ABNF_GRAMMAR_STR) == STRICT_ABNF_GRAMMAR
