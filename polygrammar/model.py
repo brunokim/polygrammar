@@ -123,7 +123,7 @@ class Repeat(Expr):
     expr: Expr = field(validator=instance_of(Expr))
     min: int = field(validator=[instance_of(int), ge(0)], default=0)
     max: int | None = field(
-        validator=optional(and_(instance_of(int), ge(1))), default=None
+        validator=optional(and_(instance_of(int), ge(0))), default=None
     )
 
     def __attrs_post_init__(self):

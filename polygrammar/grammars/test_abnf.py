@@ -1,6 +1,33 @@
 from textwrap import dedent
 
 import pytest
+from abnf.grammars import (
+    rfc2616,
+    rfc3339,
+    rfc3629,
+    rfc3986,
+    rfc3987,
+    rfc4647,
+    rfc5234,
+    rfc5322,
+    rfc5646,
+    rfc5987,
+    rfc6265,
+    rfc6266,
+    rfc7230,
+    rfc7231,
+    rfc7232,
+    rfc7233,
+    rfc7234,
+    rfc7235,
+    rfc7405,
+    rfc7489,
+    rfc8187,
+    rfc9051,
+    rfc9110,
+    rfc9111,
+    rfc9116,
+)
 
 from polygrammar.grammars.abnf import PARSER, STRICT_ABNF_GRAMMAR, parse_abnf, to_abnf
 from polygrammar.model import *
@@ -145,3 +172,41 @@ def test_parse_abnf_grammar():
 def test_self_parse():
     text = to_abnf(STRICT_ABNF_GRAMMAR)
     assert parse_abnf(text, strict_newlines=True) == STRICT_ABNF_GRAMMAR
+
+
+@pytest.mark.parametrize(
+    "id, text",
+    [
+        ("rfc5234", rfc5234.Rule.grammar),
+        ("rfc2616", rfc2616.Rule.grammar),
+        ("rfc3339", rfc3339.Rule.grammar),
+        ("rfc3629", rfc3629.Rule.grammar),
+        ("rfc3986", rfc3986.Rule.grammar),
+        ("rfc3987", rfc3987.Rule.grammar),
+        ("rfc4647", rfc4647.Rule.grammar),
+        ("rfc5322", rfc5322.Rule.grammar),
+        ("rfc5646", rfc5646.Rule.grammar),
+        ("rfc5987", rfc5987.Rule.grammar),
+        ("rfc6265", rfc6265.Rule.grammar),
+        ("rfc6266", rfc6266.Rule.grammar),
+        ("rfc7230", rfc7230.Rule.grammar),
+        ("rfc7231", rfc7231.Rule.grammar),
+        ("rfc7232", rfc7232.Rule.grammar),
+        ("rfc7233", rfc7233.Rule.grammar),
+        ("rfc7234", rfc7234.Rule.grammar),
+        ("rfc7235", rfc7235.Rule.grammar),
+        ("rfc7405", rfc7405.Rule.grammar),
+        ("rfc7489", rfc7489.Rule.grammar),
+        ("rfc8187", rfc8187.Rule.grammar),
+        ("rfc9051", rfc9051.Rule.grammar),
+        ("rfc9110", rfc9110.Rule.grammar),
+        ("rfc9111", rfc9111.Rule.grammar),
+        ("rfc9116", rfc9116.Rule.grammar),
+    ],
+)
+def test_parse_declaresub_abnf_grammars(id, text):
+    if isinstance(text, list):
+        text = "\n".join(text)
+    # TODO: Remove after https://github.com/declaresub/abnf/pull/28
+    text = text.replace("-ff", "-FF").replace("%x4d", "%x4D").replace("%x3b", "%x3B")
+    parse_abnf(text)
