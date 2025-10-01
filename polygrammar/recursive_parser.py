@@ -54,26 +54,30 @@ class Parser:
     _method_map: dict = field(init=False, factory=dict)
 
     def __attrs_post_init__(self):
-        seen = set()
+        # Map rule names to expressions.
         for rule in self.grammar.rules:
             name = rule.name.name
+            if name not in self._rule_map:
+                self._rule_map[name] = rule.expr
+                continue
+            if rule.is_additional_alt:
+                self._rule_map[name] = Alt.create(self._rule_map[name], rule.expr)
+                continue
+            if rule.is_additional_cat:
+                self._rule_map[name] = Cat.create(self._rule_map[name], rule.expr)
+                continue
+            raise ValueError(f"Duplicate rule name: {name}")
+
+        # Map visitor methods.
+        for name in self._rule_map.keys():
             method_name = "visit_" + name.replace("-", "_")
             if hasattr(self.visitor, method_name):
                 self._method_map[name] = getattr(self.visitor, method_name)
 
-            if name in self._rule_map:
-                if rule.is_additional_alt:
-                    self._rule_map[name] = Alt.create(self._rule_map[name], rule.expr)
-                    continue
-                if rule.is_additional_cat:
-                    self._rule_map[name] = Cat.create(self._rule_map[name], rule.expr)
-                    continue
-                raise ValueError(f"Duplicate rule name: {name}")
-
-            seen |= symbols(rule.expr)
-
-            self._rule_map[name] = rule.expr
-
+        # Find missing rules.
+        seen = set()
+        for expr in self._rule_map.values():
+            seen |= symbols(expr)
         if missing := seen - self._rule_map.keys():
             raise ValueError(f"Undefined rule(s): {', '.join(missing)}")
 

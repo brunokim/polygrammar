@@ -289,7 +289,7 @@ class Grammar:
 
 
 @multimethod
-def walk(node: String | Symbol | Charset, f):
+def walk(node: String | Symbol | Charset | EndOfFile, f):
     yield from f(node)
 
 
