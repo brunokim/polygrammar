@@ -8,7 +8,7 @@ from polygrammar.recursive_parser import ParseError, Parser
 
 
 def test_parse_string():
-    parser = Parser(Grammar.create(s=String("A")))
+    parser = Parser.from_grammar(Grammar.create(s=String("A")))
     (got,) = parser.first_full_parse("A")
     assert got == ("s", "A")
     with pytest.raises(ParseError):
@@ -16,7 +16,7 @@ def test_parse_string():
 
 
 def test_parse_alt():
-    parser = Parser(Grammar.create(s=Alt.create(String("A"), String("B"))))
+    parser = Parser.from_grammar(Grammar.create(s=Alt.create(String("A"), String("B"))))
     (got,) = parser.first_full_parse("A")
     assert got == ("s", "A")
     (got,) = parser.first_full_parse("B")
@@ -26,7 +26,7 @@ def test_parse_alt():
 
 
 def test_parse_cat():
-    parser = Parser(Grammar.create(s=Cat.create(String("A"), String("B"))))
+    parser = Parser.from_grammar(Grammar.create(s=Cat.create(String("A"), String("B"))))
     (got,) = parser.first_full_parse("AB")
     assert got == ("s", "A", "B")
     with pytest.raises(ParseError):
@@ -34,7 +34,7 @@ def test_parse_cat():
 
 
 def test_parse_symbol():
-    parser = Parser(
+    parser = Parser.from_grammar(
         Grammar.create(s=Alt.create(Cat.create(String("A"), Symbol("s")), String("!")))
     )
     (got,) = parser.first_full_parse("!")
@@ -63,13 +63,15 @@ def test_parse_symbol():
     ],
 )
 def test_parse_repeat(min, max, text, want):
-    parser = Parser(Grammar.create(s=Repeat.create(String("A"), min=min, max=max)))
+    parser = Parser.from_grammar(
+        Grammar.create(s=Repeat.create(String("A"), min=min, max=max))
+    )
     (got,) = parser.first_full_parse(text)
     assert got == want
 
 
 def test_parse_charset_char():
-    parser = Parser(Grammar.create(s=Charset.create("a", "b", "c")))
+    parser = Parser.from_grammar(Grammar.create(s=Charset.create("a", "b", "c")))
     (got,) = parser.first_full_parse("a")
     assert got == ("s", "a")
     (got,) = parser.first_full_parse("b")
@@ -81,7 +83,9 @@ def test_parse_charset_char():
 
 
 def test_parse_charset_range():
-    parser = Parser(Grammar.create(s=Charset.create(CharRange.create("a", "z"))))
+    parser = Parser.from_grammar(
+        Grammar.create(s=Charset.create(CharRange.create("a", "z")))
+    )
     (got,) = parser.first_full_parse("a")
     assert got == ("s", "a")
     (got,) = parser.first_full_parse("m")
@@ -93,7 +97,7 @@ def test_parse_charset_range():
 
 
 def test_parse_charset_diff():
-    parser = Parser(
+    parser = Parser.from_grammar(
         Grammar.create(
             s=CharsetDiff.create(
                 Charset.create(CharRange.create("a", "z")),
@@ -120,7 +124,7 @@ def test_parse_charset_diff():
 
 
 def test_parse_token():
-    parser = Parser(
+    parser = Parser.from_grammar(
         Grammar.create(INT=OneOrMore.create(Charset.create(CharRange.create("0", "9"))))
     )
     (got,) = parser.first_full_parse("123")
@@ -129,7 +133,7 @@ def test_parse_token():
 
 @pytest.fixture(scope="session")
 def integer_parser():
-    return Parser(
+    return Parser.from_grammar(
         Grammar.create(
             INT=OneOrMore(Alt.create(Symbol("digit"), Symbol("_separator"))),
             digit=Charset.create(CharRange.create("0", "9")),
@@ -153,7 +157,9 @@ def test_parse_ignored(text, want, integer_parser):
 
 
 def test_first_parse():
-    parser = Parser(Grammar.create(s=Optional.create("<", Symbol("s"), ">")))
+    parser = Parser.from_grammar(
+        Grammar.create(s=Optional.create("<", Symbol("s"), ">"))
+    )
     text, offset = "<><<>><><>", 0
     (got,), offset = parser.first_parse(text, offset=offset)
     assert got == ("s", "<", ("s",), ">")
@@ -164,7 +170,7 @@ def test_first_parse():
 
 
 def test_ambiguous_parse():
-    parser = Parser(
+    parser = Parser.from_grammar(
         Grammar.create(
             s=Alt.create(
                 Cat.create("A", Symbol("s")), Cat.create("AA", Symbol("s")), "A"
@@ -212,13 +218,13 @@ def test_ambiguous_parse():
     ],
 )
 def test_parse_error(text, msg):
-    parser = Parser(Grammar.create(s=OneOrMore(Alt.create("A", "\n"))))
+    parser = Parser.from_grammar(Grammar.create(s=OneOrMore(Alt.create("A", "\n"))))
     with pytest.raises(ParseError, match=f"^{re.escape(msg)}$"):
         parser.first_full_parse(text)
 
 
 def test_no_match():
-    parser = Parser(Grammar.create(s=OneOrMore(Alt.create("A", "\n"))))
+    parser = Parser.from_grammar(Grammar.create(s=OneOrMore(Alt.create("A", "\n"))))
 
     msg1 = dedent(
         """\
@@ -301,7 +307,7 @@ def number_visitor():
 
 @pytest.fixture(scope="session")
 def number_parser(number_grammar, number_visitor):
-    return Parser(number_grammar, number_visitor)
+    return Parser.from_grammar(number_grammar, number_visitor)
 
 
 @pytest.mark.parametrize(

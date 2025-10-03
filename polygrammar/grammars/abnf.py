@@ -357,8 +357,8 @@ ABNF_GRAMMAR = evolve(
     ),
 )
 
-STRICT_PARSER = Parser(STRICT_ABNF_GRAMMAR, AbnfVisitor())
-PARSER = Parser(ABNF_GRAMMAR, AbnfVisitor())
+STRICT_PARSER = Parser.from_grammar(STRICT_ABNF_GRAMMAR, AbnfVisitor())
+PARSER = Parser.from_grammar(ABNF_GRAMMAR, AbnfVisitor())
 
 
 def parse_abnf(text: str, strict_newlines=False):

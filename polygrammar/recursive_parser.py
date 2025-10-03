@@ -6,7 +6,7 @@ from attrs import define, evolve, field, frozen
 from attrs.validators import instance_of
 
 from polygrammar.model import *
-from polygrammar.model import symbols
+from polygrammar.runtime import Runtime
 
 __all__ = ["Parser", "ParseError"]
 
@@ -48,38 +48,15 @@ class ParseError(Exception):
 @frozen
 class Parser:
     grammar: Grammar = field(validator=instance_of(Grammar))
-    visitor: Visitor = field(factory=Visitor)
+    visitor: Visitor = field(validator=instance_of(Visitor))
+    _rt: Runtime = field(validator=instance_of(Runtime))
 
-    _rule_map: dict = field(init=False, factory=dict)
-    _method_map: dict = field(init=False, factory=dict)
-
-    def __attrs_post_init__(self):
-        # Map rule names to expressions.
-        for rule in self.grammar.rules:
-            name = rule.name.name
-            if name not in self._rule_map:
-                self._rule_map[name] = rule.expr
-                continue
-            if rule.is_additional_alt:
-                self._rule_map[name] = Alt.create(self._rule_map[name], rule.expr)
-                continue
-            if rule.is_additional_cat:
-                self._rule_map[name] = Cat.create(self._rule_map[name], rule.expr)
-                continue
-            raise ValueError(f"Duplicate rule name: {name}")
-
-        # Map visitor methods.
-        for name in self._rule_map.keys():
-            method_name = "visit_" + name.replace("-", "_")
-            if hasattr(self.visitor, method_name):
-                self._method_map[name] = getattr(self.visitor, method_name)
-
-        # Find missing rules.
-        seen = set()
-        for expr in self._rule_map.values():
-            seen |= symbols(expr)
-        if missing := seen - self._rule_map.keys():
-            raise ValueError(f"Undefined rule(s): {', '.join(missing)}")
+    @classmethod
+    def from_grammar(cls, grammar, visitor=None, **kwargs):
+        if visitor is None:
+            visitor = Visitor()
+        rt = Runtime.from_grammar(grammar, visitor, **kwargs)
+        return cls(grammar, visitor, rt)
 
     def parse(self, text, start=None, offset=0, debug=True):
         if start is None:
@@ -163,7 +140,7 @@ class ParseJob:
         self._debug_stacks.append((msg, stack))
 
     def _parse_symbol(self, state, name, is_ignored=False, is_token=False):
-        expr = self.parser._rule_map[name]
+        expr = self.parser._rt.rule_map[name]
 
         if is_ignored or name[0] == "_":
             yield from self._parse_expr(state, expr, is_ignored=True)
@@ -175,9 +152,9 @@ class ParseJob:
             args = st.results
             if is_token:
                 result = "".join(args)
-                if visit_token := self.parser._method_map.get(name):
+                if visit_token := self.parser._rt.method_map.get(name):
                     result = visit_token(result)
-            elif method := self.parser._method_map.get(name):
+            elif method := self.parser._rt.method_map.get(name):
                 result = method(*args)
             else:
                 result = self.parser.visitor.visit(name, *args)

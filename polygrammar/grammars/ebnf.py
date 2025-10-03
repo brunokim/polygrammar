@@ -343,7 +343,7 @@ class EbnfVisitor(Visitor):
         return int(token)
 
 
-PARSER = Parser(EBNF_GRAMMAR, EbnfVisitor())
+PARSER = Parser.from_grammar(EBNF_GRAMMAR, EbnfVisitor())
 
 
 def parse_ebnf(text):

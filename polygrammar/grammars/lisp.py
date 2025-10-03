@@ -270,8 +270,8 @@ class LispGrammarVisitor(LispVisitor):
                 return values
 
 
-DATA_PARSER = Parser(LISP_GRAMMAR, LispVisitor())
-GRAMMAR_PARSER = Parser(LISP_GRAMMAR, LispGrammarVisitor())
+DATA_PARSER = Parser.from_grammar(LISP_GRAMMAR, LispVisitor())
+GRAMMAR_PARSER = Parser.from_grammar(LISP_GRAMMAR, LispGrammarVisitor())
 
 
 def parse_lisp_grammar(text):
