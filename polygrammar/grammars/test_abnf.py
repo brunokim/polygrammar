@@ -74,7 +74,7 @@ comment = ";" *( VCHAR / WSP ) nl
 WSP = %x20 / %x09
 BIT = "0" / "1"
 DIGIT = %x30-39
-HEXDIG = %x30-39 / %x41-46
+HEXDIG = %x30-39 / %x41-46 / %x61-66
 VCHAR = %x21-7E
 ALPHA = %x41-5A / %x61-7A
 CR = %x0D
@@ -207,6 +207,4 @@ def test_self_parse():
 def test_parse_declaresub_abnf_grammars(id, text):
     if isinstance(text, list):
         text = "\n".join(text)
-    # TODO: Remove after https://github.com/declaresub/abnf/pull/28
-    text = text.replace("-ff", "-FF").replace("%x4d", "%x4D").replace("%x3b", "%x3B")
     parse_abnf(text)

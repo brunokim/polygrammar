@@ -236,6 +236,8 @@ class LispVisitor(Visitor):
         annotations = values[:-1]
         value = values[-1]
         for i in range(1, len(annotations), 2):
+            if isinstance(value, str):
+                value = String(value)
             value.__meta__.append(annotations[i])
         return value
 

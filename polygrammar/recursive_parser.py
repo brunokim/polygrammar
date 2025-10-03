@@ -197,7 +197,13 @@ class ParseJob:
             case Cat(exprs):
                 yield from self._parse_cat(state, exprs, **kwargs)
             case String(value):
-                yield from self._parse_string(state, value, **kwargs)
+                if meta.get(Symbol("i")):
+                    is_case_sensitive = False
+                elif meta.get(Symbol("s")):
+                    is_case_sensitive = True
+                else:
+                    is_case_sensitive = meta.get(Symbol("case_sensitive"), True)
+                yield from self._parse_string(state, value, is_case_sensitive, **kwargs)
             case Symbol(name):
                 yield from self._parse_symbol(state, name, **kwargs)
             case Repeat(expr, min_, max_):
@@ -237,17 +243,28 @@ class ParseJob:
         if min == 0:
             yield state
 
-    def _parse_string(self, state, value, is_ignored=False, **kwargs):
+    def _parse_string(
+        self, state, value, is_case_sensitive, is_ignored=False, **kwargs
+    ):
         start = state.offset
         end = start + len(value)
-        if self.text[start:end] != value:
+
+        text = self.text[start:end]
+        if is_case_sensitive:
+            is_match = text == value
+        else:
+            is_match = text.lower() == value.lower()
+
+        if not is_match:
             if state.offset == self._debug_offset:
-                self._debug(f"string: {self.text[start:end]!r} != {value!r}")
+                self._debug(
+                    f"string: {self.text[start:end]!r} != {value!r} ({is_case_sensitive=})"
+                )
             return
 
         results = state.results
         if not is_ignored:
-            results = results + [value]
+            results = results + [text]
         yield evolve(state, offset=end, results=results)
 
     def _parse_charset(self, state, groups, is_ignored=False, **kwargs):

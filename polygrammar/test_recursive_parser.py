@@ -222,14 +222,14 @@ def test_no_match():
 
     msg1 = dedent(
         """\
-        At 1:1 (0): string: 'B' != 'A' (symbol@0 > repeat@0 > alt@0 > string@0)
+        At 1:1 (0): string: 'B' != 'A' (is_case_sensitive=True) (symbol@0 > repeat@0 > alt@0 > string@0)
             BBBB
             ^
         """
     )
     msg2 = dedent(
         """\
-        At 1:1 (0): string: 'B' != '\\n' (symbol@0 > repeat@0 > alt@0 > string@0)
+        At 1:1 (0): string: 'B' != '\\n' (is_case_sensitive=True) (symbol@0 > repeat@0 > alt@0 > string@0)
             BBBB
             ^
         """

@@ -187,7 +187,10 @@ STRICT_ABNF_GRAMMAR = parse_lisp_grammar(
         (rule WSP (alt " " "\t"))
         (rule BIT (alt "0" "1"))
         (rule DIGIT (charset (char_range "0" "9")))
-        (rule HEXDIG (alt (charset (char_range "0" "9")) (charset (char_range "A" "F"))))
+        (rule HEXDIG (alt
+            (charset (char_range "0" "9"))
+            (charset (char_range "A" "F"))
+            (charset (char_range "a" "f"))))
         (rule VCHAR (charset (char_range "!" "~")))
         (rule ALPHA (alt (charset (char_range "A" "Z")) (charset (char_range "a" "z"))))
         (rule CR "\r")
