@@ -9,7 +9,7 @@ from polygrammar.grammars.lisp import (
     parse_lisp_grammar,
     to_lisp,
 )
-from polygrammar.model import Symbol
+from polygrammar.model import String, Symbol
 
 LISP_GRAMMAR_STR = r'''
 (grammar
@@ -120,6 +120,11 @@ def test_parse_lisp_data(text, data):
             "#(a b) #(c d) x",
             Symbol("x"),
             {Symbol("a"): Symbol("b"), Symbol("c"): Symbol("d")},
+        ),
+        (
+            '#i#j#k"x"',
+            String("x"),
+            {Symbol("i"): True, Symbol("j"): True, Symbol("k"): True},
         ),
     ],
 )

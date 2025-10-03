@@ -144,6 +144,8 @@ MAX_WIDTH = 80
 
 
 def lisp_str(obj):
+    if isinstance(obj, String):
+        obj = obj.value
     if isinstance(obj, str):
         content = ESCAPE.serialize(obj)
         return f'"{content}"'
@@ -235,9 +237,10 @@ class LispVisitor(Visitor):
     def visit_annotated_value(self, *values):
         annotations = values[:-1]
         value = values[-1]
+        if annotations and isinstance(value, str):
+            # Convert to String to append annotations.
+            value = String(value)
         for i in range(1, len(annotations), 2):
-            if isinstance(value, str):
-                value = String(value)
             value.__meta__.append(annotations[i])
         return value
 
@@ -261,6 +264,7 @@ class LispGrammarVisitor(LispVisitor):
                 cls = lisp_name[name]
                 if name in {"symbol", "string", "char", "end_of_file"}:
                     return cls(*args)
+                args = (arg.value if isinstance(arg, String) else arg for arg in args)
                 return cls.create(*args)
             case _:
                 return values
