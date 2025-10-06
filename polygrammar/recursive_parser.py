@@ -79,24 +79,8 @@ class Parser:
             excs.append(ParseError(text, job._debug_offset, f"{msg} ({context})"))
         raise ExceptionGroup("no match", excs)
 
-    def full_parse(self, text, start=None, debug=True):
-        has_full_match = False
-        max_error_offset = -1
-        for result, offset in self.parse(text, start, debug=debug):
-            if offset >= len(text):
-                has_full_match = True
-                yield result
-            elif offset > max_error_offset:
-                max_error_offset = offset
-
-        if not has_full_match:
-            raise ParseError(text, max_error_offset, "trailing characters")
-
     def first_parse(self, text, start=None, offset=0, debug=True):
         return next(self.parse(text, start, offset, debug))
-
-    def first_full_parse(self, text, start=None, debug=True):
-        return next(self.full_parse(text, start, debug))
 
 
 @define

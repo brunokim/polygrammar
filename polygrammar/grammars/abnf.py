@@ -363,5 +363,6 @@ PARSER = Parser.from_grammar(ABNF_GRAMMAR, AbnfVisitor())
 
 def parse_abnf(text: str, strict_newlines=False):
     parser = STRICT_PARSER if strict_newlines else PARSER
-    (node,) = parser.first_full_parse(text)
+    tree, _ = parser.first_parse(text)
+    (node,) = tree
     return node

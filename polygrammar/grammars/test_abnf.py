@@ -114,7 +114,7 @@ CTL = %x00-1F / %x7F
     ],
 )
 def test_parse_abnf_expression(text, want):
-    (got,) = PARSER.first_full_parse(text, start="element")
+    (got,), _ = PARSER.first_parse(text, start="element")
     assert got == want
 
 

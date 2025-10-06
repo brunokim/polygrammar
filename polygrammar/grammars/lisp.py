@@ -74,6 +74,11 @@ def to_lisp(self: String):
 
 
 @multimethod
+def to_lisp(self: EndOfFile):
+    return (Symbol("end_of_file"),)
+
+
+@multimethod
 def to_lisp(self: Alt):
     return (Symbol("alt"),) + tuple(to_lisp(expr) for expr in self.exprs)
 
@@ -185,7 +190,13 @@ grammar = Grammar.create
 
 
 LISP_GRAMMAR = grammar(
-    values=cat(symbol("_"), zero_or_more(symbol("annotated_value"), symbol("_"))),
+    file=cat(
+        symbol("_"), zero_or_more(symbol("annotated_value"), symbol("_")), EndOfFile()
+    ),
+    annotated_value=cat(
+        zero_or_more("#", symbol("value"), symbol("_")), symbol("value")
+    ),
+    value=alt(symbol("SYMBOL"), symbol("STRING"), symbol("term")),
     term=cat(
         string("("),
         symbol("_"),
@@ -196,10 +207,6 @@ LISP_GRAMMAR = grammar(
         ),
         string(")"),
     ),
-    annotated_value=cat(
-        zero_or_more("#", symbol("value"), symbol("_")), symbol("value")
-    ),
-    value=alt(symbol("SYMBOL"), symbol("STRING"), symbol("term")),
     SYMBOL=alt(symbol("c_symbol"), symbol("operator")),
     c_symbol=cat(
         alt(symbol("letter"), string("_")),
@@ -228,7 +235,7 @@ LISP_GRAMMAR = grammar(
 
 
 class LispVisitor(Visitor):
-    def visit_values(self, *values):
+    def visit_file(self, *values):
         return values
 
     def visit_term(self, *values):
@@ -275,12 +282,13 @@ GRAMMAR_PARSER = Parser.from_grammar(LISP_GRAMMAR, LispGrammarVisitor())
 
 
 def parse_lisp_grammar(text):
-    (node,) = GRAMMAR_PARSER.first_full_parse(text)
-    (grammar,) = node
+    tree, _ = GRAMMAR_PARSER.first_parse(text)
+    (values,) = tree
+    (grammar,) = values
     return grammar
 
 
 def parse_lisp_data(text):
-    (node,) = DATA_PARSER.first_full_parse(text)
-    (grammar,) = node
-    return grammar
+    tree, _ = DATA_PARSER.first_parse(text)
+    (values,) = tree
+    return values

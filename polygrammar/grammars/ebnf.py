@@ -347,5 +347,6 @@ PARSER = Parser.from_grammar(EBNF_GRAMMAR, EbnfVisitor())
 
 
 def parse_ebnf(text):
-    (node,) = PARSER.first_full_parse(text)
+    tree, _ = PARSER.first_parse(text)
+    (node,) = tree
     return node

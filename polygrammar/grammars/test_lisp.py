@@ -15,10 +15,10 @@ LISP_GRAMMAR_STR = r'''
 (grammar
   ; This is a generic Lisp-like grammar, allowing nested list expressions.
   ; The only terminals are symbols and strings.
-  (rule values _ (* annotated_value _))
-  (rule term "(" _ (? annotated_value (* _1 annotated_value) _) ")")
+  (rule file _ (* annotated_value _) (end_of_file))
   (rule annotated_value (* "#" value _) value)
   (rule value (| SYMBOL STRING term))
+  (rule term "(" _ (? annotated_value (* _1 annotated_value) _) ")")
 
   ; Symbol syntax inherits from C, which is the least-common denominator for most programming languages.
   (rule SYMBOL (| c_symbol operator))
@@ -58,7 +58,6 @@ LISP_GRAMMAR_STR = r'''
         ("()", ()),
         ('"abc"', "abc"),
         ("abc", Symbol("abc")),
-        ("()", ()),
         ("(a b c)", (Symbol("a"), Symbol("b"), Symbol("c"))),
         (
             dedent(
@@ -104,8 +103,9 @@ LISP_GRAMMAR_STR = r'''
     ],
 )
 def test_parse_lisp_data(text, data):
-    assert parse_lisp_data(text) == data
-    assert lisp_str(data) == text
+    (value,) = parse_lisp_data(text)
+    assert value == data
+    assert lisp_str(value) == text
 
 
 @pytest.mark.parametrize(
@@ -129,7 +129,7 @@ def test_parse_lisp_data(text, data):
     ],
 )
 def test_parse_annotation(text, value, metadata):
-    parsed = parse_lisp_data(text)
+    (parsed,) = parse_lisp_data(text)
     assert parsed == value
     assert parsed.metadata == metadata
 
