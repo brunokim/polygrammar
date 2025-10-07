@@ -5,7 +5,7 @@ from typing import Callable
 from attrs import field, frozen
 from attrs.validators import deep_mapping, instance_of, is_callable
 
-from polygrammar.model import Alt, Cat, Expr, Grammar, Visitor, symbols
+from polygrammar.model import Alt, Cat, Expr, Grammar, Symbol, Visitor, symbols
 
 
 def handle_problem(msg: str, option: str):
@@ -15,6 +15,10 @@ def handle_problem(msg: str, option: str):
         raise ValueError(msg)
     else:
         assert option == "ignore"
+
+
+BASE_OPTIONS = {"ignore", "warn", "error"}
+DUPLICATE_OPTIONS = {"overrides", "overloads"} | BASE_OPTIONS
 
 
 @frozen
@@ -36,19 +40,13 @@ class Runtime:
     ):
         if visitor is None:
             visitor = Visitor()
-        if on_duplicate_rule not in {
-            "overrides",
-            "overloads",
-            "ignore",
-            "warn",
-            "error",
-        }:
+        if on_duplicate_rule not in DUPLICATE_OPTIONS:
             raise ValueError(
-                "on_duplicate_rule must be 'overrides', 'overloads', 'ignore', 'warn' or 'error'"
+                "on_duplicate_rule must be one of {', '.join(DUPLICATE_OPTIONS)}"
             )
-        if on_unused_visitor_methods not in {"ignore", "warn", "error"}:
+        if on_unused_visitor_methods not in BASE_OPTIONS:
             raise ValueError(
-                "on_unused_visitor_methods must be 'ignore', 'warn' or 'error'"
+                "on_unused_visitor_methods must be one of {', '.join(BASE_OPTIONS)}"
             )
         rule_map = {}
         method_map = {}
@@ -57,6 +55,10 @@ class Runtime:
         duplicate_rules = []
         for rule in grammar.rules:
             name = rule.name.name
+            if name[0] == "_":
+                rule.expr.__meta__.append(Symbol("ignore"))
+            if name[0].isupper():
+                rule.expr.__meta__.append(Symbol("token"))
             if name not in rule_map or on_duplicate_rule == "overrides":
                 rule_map[name] = rule.expr
                 continue

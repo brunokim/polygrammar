@@ -134,12 +134,12 @@ class ParseJob:
             raise ValueError("Can't parse symbol {name!r}, no grammar provided")
         expr = self.parser._rt.rule_map[name]
 
-        if is_ignored or name[0] == "_":
+        if is_ignored or expr.has_meta("_", "ignore"):
             yield from self._parse_expr(state, expr, is_ignored=True)
             return
 
         results = state.results
-        is_token = is_token or name[0].isupper()
+        is_token = is_token or expr.has_meta("token")
         for st in self._parse_expr(evolve(state, results=[]), expr, is_token=is_token):
             args = st.results
             if is_token:
@@ -155,10 +155,9 @@ class ParseJob:
 
     def _parse_expr(self, state, expr, **kwargs):
         self._max_offset = max(self._max_offset, state.offset)
-        meta = expr.metadata
-        if meta.get(Symbol("_")) or meta.get(Symbol("ignore")):
+        if expr.has_meta("_", "ignore"):
             kwargs["is_ignored"] = True
-        if meta.get(Symbol("token")):
+        if expr.has_meta("token"):
             kwargs["is_token"] = True
         match expr:
             case Alt(exprs):
@@ -166,12 +165,12 @@ class ParseJob:
             case Cat(exprs):
                 yield from self._parse_cat(state, exprs, **kwargs)
             case String(value):
-                if meta.get(Symbol("i")):
+                if expr.has_meta("i"):
                     is_case_sensitive = False
-                elif meta.get(Symbol("s")):
+                elif expr.has_meta("s"):
                     is_case_sensitive = True
                 else:
-                    is_case_sensitive = meta.get(Symbol("case_sensitive"), True)
+                    is_case_sensitive = expr.get_meta("case_sensitive", True)
                 yield from self._parse_string(state, value, is_case_sensitive, **kwargs)
             case Symbol(name):
                 yield from self._parse_symbol(state, name, **kwargs)

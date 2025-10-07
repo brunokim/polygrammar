@@ -67,6 +67,13 @@ class Expr:
                     d[x] = True
         return d
 
+    def has_meta(self, *names):
+        meta = self.metadata
+        return any(Symbol(name) in meta for name in names)
+
+    def get_meta(self, name, default=None):
+        return self.metadata.get(Symbol(name), default)
+
 
 @frozen
 class Alt(Expr):
