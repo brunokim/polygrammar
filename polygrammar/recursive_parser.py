@@ -3,7 +3,7 @@ from textwrap import dedent
 from typing import Any
 
 from attrs import define, evolve, field, frozen
-from attrs.validators import instance_of
+from attrs.validators import instance_of, optional
 
 from polygrammar.model import *
 from polygrammar.runtime import Runtime
@@ -47,9 +47,13 @@ class ParseError(Exception):
 
 @frozen
 class Parser:
-    grammar: Grammar = field(validator=instance_of(Grammar))
-    visitor: Visitor = field(validator=instance_of(Visitor))
-    _rt: Runtime = field(validator=instance_of(Runtime))
+    grammar: Grammar | None = field(
+        validator=optional(instance_of(Grammar)), default=None
+    )
+    visitor: Visitor | None = field(
+        validator=optional(instance_of(Visitor)), default=None
+    )
+    _rt: Runtime | None = field(validator=optional(instance_of(Runtime)), default=None)
 
     @classmethod
     def from_grammar(cls, grammar, visitor=None, **kwargs):
@@ -58,11 +62,13 @@ class Parser:
         rt = Runtime.from_grammar(grammar, visitor, **kwargs)
         return cls(grammar, visitor, rt)
 
-    def parse(self, text, start=None, offset=0, debug=True):
-        if start is None:
-            start = self.grammar.rules[0].name.name
+    def parse(self, text, expr=None, offset=0, debug=True):
+        if expr is None:
+            if self.grammar is None or not self.grammar.rules:
+                raise ValueError("No grammar or rules defined")
+            expr = self.grammar.rules[0].name
         job = ParseJob(self, text)
-        yield from job.parse(start, offset)
+        yield from job.parse(expr, offset)
 
         if job._num_solutions > 0:
             return
@@ -72,15 +78,15 @@ class Parser:
 
         # Redo parsing with a debug offset to get better error info.
         job._debug_offset = job._max_offset
-        list(job.parse(start, offset))
+        list(job.parse(expr, offset))
         excs = []
         for msg, stack in job._debug_stacks:
             context = " > ".join(f"{name}@{off}" for name, off in stack)
             excs.append(ParseError(text, job._debug_offset, f"{msg} ({context})"))
         raise ExceptionGroup("no match", excs)
 
-    def first_parse(self, text, start=None, offset=0, debug=True):
-        return next(self.parse(text, start, offset, debug))
+    def first_parse(self, text, expr=None, offset=0, debug=True):
+        return next(self.parse(text, expr, offset, debug))
 
 
 @define
@@ -99,11 +105,11 @@ class ParseJob:
     _debug_offset: int = field(init=False, default=-1)
     _debug_stacks: list = field(init=False, factory=list)
 
-    def parse(self, start, offset):
+    def parse(self, expr, offset):
         self._num_solutions = 0
         self._max_offset = 0
         initial_state = State(offset=offset)
-        for state in self._parse_symbol(initial_state, start):
+        for state in self._parse_expr(initial_state, expr):
             self._num_solutions += 1
             yield state.results, state.offset
 
@@ -124,6 +130,8 @@ class ParseJob:
         self._debug_stacks.append((msg, stack))
 
     def _parse_symbol(self, state, name, is_ignored=False, is_token=False):
+        if self.parser._rt is None:
+            raise ValueError("Can't parse symbol {name!r}, no grammar provided")
         expr = self.parser._rt.rule_map[name]
 
         if is_ignored or name[0] == "_":

@@ -334,3 +334,23 @@ def number_parser(number_grammar, number_visitor):
 def test_visitor(text, want, number_parser):
     (got,), _ = number_parser.first_parse(text)
     assert got == want
+
+
+@pytest.mark.parametrize(
+    "expr, text, want",
+    [
+        (String("A"), "A", ["A"]),
+        (ZeroOrMore(String("A")), "AAAA", ["A", "A", "A", "A"]),
+        (ZeroOrMore(String("A")), "AAAABA", ["A", "A", "A", "A"]),
+        (
+            ZeroOrMore(Alt.create("A", "A", "B")),
+            "AAAABA",
+            ["A", "A", "A", "A", "B", "A"],
+        ),
+        (ZeroOrMore(Alt.create("AA", "A", "B")), "AAABA", ["AA", "A", "B", "A"]),
+    ],
+)
+def test_parse_without_grammar(expr, text, want):
+    parser = Parser()
+    result, _ = parser.first_parse(text, expr)
+    assert result == want
