@@ -139,10 +139,9 @@ class ParseJob:
             return
 
         results = state.results
-        is_token = is_token or expr.has_meta("token")
         for st in self._parse_expr(evolve(state, results=[]), expr, is_token=is_token):
             args = st.results
-            if is_token:
+            if is_token or expr.has_meta("token"):
                 result = "".join(args)
                 if visit_token := self.parser._rt.method_map.get(name):
                     result = visit_token(result)

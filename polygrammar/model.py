@@ -10,9 +10,9 @@ from attrs.validators import (
     min_len,
     optional,
 )
-from multimethod import multimethod
 
 __all__ = [
+    "Node",
     "Expr",
     "Alt",
     "Cat",
@@ -51,7 +51,18 @@ def to_symbol(x):
 
 
 @frozen
-class Expr:
+class Node:
+    @property
+    def children(self):
+        return ()
+
+    @property
+    def attributes(self):
+        return {}
+
+
+@frozen
+class Expr(Node):
     __meta__: list = field(init=False, eq=False, hash=False, repr=False, factory=list)
 
     @property
@@ -81,6 +92,10 @@ class Alt(Expr):
         converter=tuple, validator=[min_len(2), deep_iterable(instance_of(Expr))]
     )
 
+    @property
+    def children(self):
+        return self.exprs
+
     @classmethod
     def create(cls, *exprs: Expr) -> Expr:
         exprs = (to_string(expr) for expr in exprs)
@@ -105,6 +120,10 @@ class Cat(Expr):
     exprs: tuple[Expr, ...] = field(
         converter=tuple, validator=[min_len(2), deep_iterable(instance_of(Expr))]
     )
+
+    @property
+    def children(self):
+        return self.exprs
 
     @classmethod
     def create(cls, *exprs: Expr) -> Expr:
@@ -137,8 +156,16 @@ class Repeat(Expr):
         if self.max is not None and self.min > self.max:
             raise ValueError(f"{self.min} > {self.max}")
 
+    @property
+    def children(self):
+        return (self.expr,)
+
+    @property
+    def attributes(self):
+        return {"min": self.min, "max": self.max}
+
     @classmethod
-    def create(cls, *exprs, min=0, max=None):
+    def create(cls, *exprs: Expr, min=0, max=None):
         expr = Cat.create(*exprs)
         if min == 0 and max is None:
             return ZeroOrMore(expr)
@@ -155,7 +182,7 @@ class Optional(Repeat):
         super().__init__(expr, 0, 1)
 
     @classmethod
-    def create(cls, *exprs):
+    def create(cls, *exprs: Expr):
         expr = Cat.create(*exprs)
         return cls(expr)
 
@@ -166,7 +193,7 @@ class ZeroOrMore(Repeat):
         super().__init__(expr, 0)
 
     @classmethod
-    def create(cls, *exprs):
+    def create(cls, *exprs: Expr):
         expr = Cat.create(*exprs)
         return cls(expr)
 
@@ -177,7 +204,7 @@ class OneOrMore(Repeat):
         super().__init__(expr, 1)
 
     @classmethod
-    def create(cls, *exprs):
+    def create(cls, *exprs: Expr):
         expr = Cat.create(*exprs)
         return cls(expr)
 
@@ -192,23 +219,27 @@ class String(Expr):
     value: str = field(validator=[instance_of(str), min_len(1)])
 
 
-@frozen
-class Char:
-    char: str = field(validator=[instance_of(str), min_len(1), max_len(1)])
-
-
 class EndOfFile(Expr):
     pass
 
 
 @frozen
-class CharRange:
+class Char(Node):
+    char: str = field(validator=[instance_of(str), min_len(1), max_len(1)])
+
+
+@frozen
+class CharRange(Node):
     start: Char = field(validator=instance_of(Char))
     end: Char = field(validator=instance_of(Char))
 
     def __attrs_post_init__(self):
         if self.start.char >= self.end.char:
             raise ValueError(f"Invalid range: {self.start}-{self.end}")
+
+    @property
+    def children(self):
+        return (self.start, self.end)
 
     @classmethod
     def create(cls, start: str | Char, end: str | Char) -> "CharRange":
@@ -222,6 +253,10 @@ class Charset(Expr):
         validator=[deep_iterable(instance_of((Char, CharRange))), min_len(1)],
     )
 
+    @property
+    def children(self):
+        return self.groups
+
     @classmethod
     def create(cls, *groups: str | Char | CharRange) -> "Charset":
         groups = (to_char(g) for g in groups)
@@ -232,6 +267,10 @@ class Charset(Expr):
 class Diff(Expr):
     base: Expr = field(validator=instance_of(Expr))
     diff: Expr = field(validator=instance_of(Expr))
+
+    @property
+    def children(self):
+        return (self.base, self.diff)
 
     @classmethod
     def create(cls, base: Expr, *exprs: Expr) -> "Diff":
@@ -251,19 +290,30 @@ class CharsetDiff(Diff):
             raise TypeError(f"diff must be Charset or Symbol, got {type(self.diff)}")
 
     @classmethod
-    def create(cls, base: Expr, *exprs) -> "CharsetDiff":
+    def create(cls, base: Expr, *exprs: Expr) -> "CharsetDiff":
         for expr in exprs:
             base = cls(base, to_charset(to_char(expr)))
         return base
 
 
 @frozen
-class Rule:
+class Rule(Node):
     name: Symbol = field(validator=instance_of(Symbol))
     expr: Expr = field(validator=instance_of(Expr))
 
     is_additional_cat: bool = field(default=False, validator=instance_of(bool))
     is_additional_alt: bool = field(default=False, validator=instance_of(bool))
+
+    @property
+    def children(self):
+        return (self.name, self.expr)
+
+    @property
+    def attributes(self):
+        return {
+            "is_additional_cat": self.is_additional_cat,
+            "is_additional_alt": self.is_additional_alt,
+        }
 
     @classmethod
     def create(
@@ -279,10 +329,14 @@ class Rule:
 
 
 @frozen
-class Grammar:
+class Grammar(Node):
     rules: tuple[Rule, ...] = field(
         converter=tuple, validator=[min_len(1), deep_iterable(instance_of(Rule))]
     )
+
+    @property
+    def children(self):
+        return self.rules
 
     @classmethod
     def create(cls, *rules, **kwargs) -> "Grammar":
@@ -295,36 +349,18 @@ class Grammar:
 # Recursive walk
 
 
-@multimethod
-def walk(node: String | Symbol | Charset | EndOfFile, f):
+def walk(node, f):
+    for child in node.children:
+        yield from walk(child, f)
     yield from f(node)
 
 
-@multimethod
-def walk(node: Alt, f):  # noqa: F811
-    for e in node.exprs:
-        yield from walk(e, f)
-    yield from f(node)
-
-
-@multimethod
-def walk(node: Cat, f):  # noqa: F811
-    for e in node.exprs:
-        yield from walk(e, f)
-    yield from f(node)
-
-
-@multimethod
-def walk(node: Repeat, f):  # noqa: F811
-    yield from walk(node.expr, f)
-    yield from f(node)
-
-
-@multimethod
-def walk(node: Diff, f):  # noqa: F811
-    yield from walk(node.base, f)
-    yield from walk(node.diff, f)
-    yield from f(node)
+def transform(node, f):
+    if not node.children:
+        return f(node)
+    cls = type(node)
+    children = (transform(c, f) for c in node.children)
+    return cls.create(*children, **node.attributes)
 
 
 def symbols(e: Expr):

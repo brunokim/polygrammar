@@ -4,7 +4,25 @@ import pytest
 
 from polygrammar.grammars.ebnf import EBNF_GRAMMAR, parse_ebnf, to_ebnf
 from polygrammar.model import *
-from polygrammar.optimizer import optimize
+from polygrammar.optimizer import inline_rules, optimize
+from polygrammar.runtime import build_rule_map
+
+
+@pytest.mark.parametrize(
+    "grammar, method_map, output",
+    [
+        ('A = "a"; AA = A A;', {}, 'A = "a"; AA = "a" "a";'),
+        ('AA = A A; A = "a";', {}, 'AA = "a" "a"; A = "a";'),
+        ('A = "a"; AA = A A;', {"A": True}, 'A = "a"; AA = "a" "a";'),
+        ('A = "a"; aa = A A;', {"aa": True}, 'A = "a"; aa = A A;'),
+        ('A = "a"; AA = A A;', {"AA": True}, 'A = "a"; AA = "a" "a";'),
+        # ('A = s [s] / *s 1*s; s = "s";', {}, 'A = "s" ["s"] / *"s" 1*"s"; s = "s";'),
+    ],
+)
+def test_inline_rules(grammar, method_map, output):
+    rule_map = build_rule_map(parse_ebnf(grammar))
+    want = build_rule_map(parse_ebnf(output))
+    assert inline_rules(rule_map, method_map) == want
 
 
 @pytest.mark.parametrize(
@@ -43,13 +61,13 @@ from polygrammar.optimizer import optimize
     ],
 )
 def test_optimizer(rule_map, want):
-    rule_map = make_rule_map(parse_ebnf(rule_map))
-    want = make_rule_map(parse_ebnf(want))
+    rule_map = build_rule_map(parse_ebnf(rule_map))
+    want = build_rule_map(parse_ebnf(want))
     assert optimize(rule_map) == want
 
 
 def test_optimize_ebnf():
-    rule_map = make_rule_map(EBNF_GRAMMAR)
+    rule_map = build_rule_map(EBNF_GRAMMAR)
     optimized = optimize(
         rule_map,
         {
@@ -66,7 +84,3 @@ def test_optimize_ebnf():
         },
     )
     print(to_ebnf(Grammar.create(**optimized)))
-
-
-def make_rule_map(grammar):
-    return {rule.name.name: rule.expr for rule in grammar.rules}

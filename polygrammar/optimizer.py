@@ -1,4 +1,5 @@
 from polygrammar.model import *
+from polygrammar.model import transform
 
 
 def to_range(group):
@@ -61,6 +62,49 @@ def subtract_groups(base, diff):
         else:
             results.append(CharRange(Char(chr(a)), Char(chr(z - 1))))
     return results
+
+
+def inline_rules(rule_map, method_map):
+    seen = set()
+    new_rules = {}
+
+    def inline(expr):
+        if not isinstance(expr, Symbol):
+            return expr
+
+        name = expr.name
+        if name in new_rules:
+            # Name has already been processed.
+            return new_rules[name]
+        if name in seen:
+            # Name is still being processed, thus this is a self-reference
+            # that can't be expanded.
+            # Return just the symbol.
+            return expr
+        seen.add(name)
+        base_expr = rule_map[name]
+        if (
+            name not in method_map
+            or base_expr.has_meta("token")
+            or base_expr.has_meta("_", "ignore")
+        ):
+            # Can't inline elements of rule that has a visitor method,
+            # because this may change the number of elements passed to it.
+            #
+            # The exceptions are tokens and ignored expressions.
+            # Tokens can always be inlined, because they pass a single element
+            # to the visitor method.
+            # Likewise, ignored rules can't have visitors, so no visitor method
+            # would be called.
+            new_rules[name] = transform(base_expr, inline)
+        else:
+            new_rules[name] = base_expr
+        return new_rules[name]
+
+    for name in rule_map:
+        inline(Symbol(name))
+
+    return new_rules
 
 
 def optimize(rule_map, with_visitor=None):
