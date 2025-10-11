@@ -182,7 +182,7 @@ class Optional(Repeat):
         super().__init__(expr, 0, 1)
 
     @classmethod
-    def create(cls, *exprs: Expr):
+    def create(cls, *exprs: Expr, **kwargs):
         expr = Cat.create(*exprs)
         return cls(expr)
 
@@ -193,7 +193,7 @@ class ZeroOrMore(Repeat):
         super().__init__(expr, 0)
 
     @classmethod
-    def create(cls, *exprs: Expr):
+    def create(cls, *exprs: Expr, **kwargs):
         expr = Cat.create(*exprs)
         return cls(expr)
 
@@ -204,7 +204,7 @@ class OneOrMore(Repeat):
         super().__init__(expr, 1)
 
     @classmethod
-    def create(cls, *exprs: Expr):
+    def create(cls, *exprs: Expr, **kwargs):
         expr = Cat.create(*exprs)
         return cls(expr)
 

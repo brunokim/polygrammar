@@ -64,7 +64,7 @@ def subtract_groups(base, diff):
     return results
 
 
-def inline_rules(rule_map, method_map):
+def inline_rules(rule_map, has_visitor_method):
     seen = set()
     new_rules = {}
 
@@ -84,7 +84,7 @@ def inline_rules(rule_map, method_map):
         seen.add(name)
         base_expr = rule_map[name]
         if (
-            name not in method_map
+            name not in has_visitor_method
             or base_expr.has_meta("token")
             or base_expr.has_meta("_", "ignore")
         ):

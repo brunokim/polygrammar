@@ -9,20 +9,27 @@ from polygrammar.runtime import build_rule_map
 
 
 @pytest.mark.parametrize(
-    "grammar, method_map, output",
+    "grammar, has_visitor, output",
     [
         ('A = "a"; AA = A A;', {}, 'A = "a"; AA = "a" "a";'),
         ('AA = A A; A = "a";', {}, 'AA = "a" "a"; A = "a";'),
-        ('A = "a"; AA = A A;', {"A": True}, 'A = "a"; AA = "a" "a";'),
-        ('A = "a"; aa = A A;', {"aa": True}, 'A = "a"; aa = A A;'),
-        ('A = "a"; AA = A A;', {"AA": True}, 'A = "a"; AA = "a" "a";'),
-        # ('A = s [s] / *s 1*s; s = "s";', {}, 'A = "s" ["s"] / *"s" 1*"s"; s = "s";'),
+        ('A = "a"; AA = A A;', {"A"}, 'A = "a"; AA = "a" "a";'),
+        ('A = "a"; aa = A A;', {"aa"}, 'A = "a"; aa = A A;'),
+        ('A = "a"; AA = A A;', {"AA"}, 'A = "a"; AA = "a" "a";'),
+        ('s = "s"; a = s | s;', {}, 's = "s"; a = "s" | "s";'),
+        ('s = "s"; a = s?;', {}, 's = "s"; a = "s"?;'),
+        ('s = "s"; a = s*;', {}, 's = "s"; a = "s"*;'),
+        ('s = "s"; a = s+;', {}, 's = "s"; a = "s"+;'),
+        ('s = "s"; a = s{1,2};', {}, 's = "s"; a = "s"{1,2};'),
+        ('s = "s"; a = s - s;', {}, 's = "s"; a = "s" - "s";'),
+        ('s = "s"; a = s | s (s - s)+;', {}, 's = "s"; a = "s" | "s" ("s" - "s")+;'),
+        ('s = A s | B; A = "a"; B = "b";', {}, 's = "a" s | "b"; A = "a"; B = "b";'),
     ],
 )
-def test_inline_rules(grammar, method_map, output):
+def test_inline_rules(grammar, has_visitor, output):
     rule_map = build_rule_map(parse_ebnf(grammar))
     want = build_rule_map(parse_ebnf(output))
-    assert inline_rules(rule_map, method_map) == want
+    assert inline_rules(rule_map, has_visitor) == want
 
 
 @pytest.mark.parametrize(
