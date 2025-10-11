@@ -73,9 +73,9 @@ def test_optimizer(rule_map, want):
     assert optimize(rule_map) == want
 
 
-def test_optimize_ebnf():
+def test_inline_rules_ebnf():
     rule_map = build_rule_map(EBNF_GRAMMAR)
-    optimized = optimize(
+    optimized = inline_rules(
         rule_map,
         {
             "grammar",

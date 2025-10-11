@@ -97,6 +97,9 @@ def inline_rules(rule_map, has_visitor_method):
             # Likewise, ignored rules can't have visitors, so no visitor method
             # would be called.
             new_rules[name] = transform(base_expr, inline)
+
+            # Copy metadata
+            new_rules[name].__meta__.extend(base_expr.__meta__)
         else:
             new_rules[name] = base_expr
         return new_rules[name]
