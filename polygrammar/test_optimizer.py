@@ -4,7 +4,7 @@ import pytest
 
 from polygrammar.grammars.ebnf import EBNF_GRAMMAR, parse_ebnf, to_ebnf
 from polygrammar.model import *
-from polygrammar.optimizer import inline_rules, optimize
+from polygrammar.optimizer import inline_rules, optimize, optimize2
 from polygrammar.runtime import build_rule_map
 
 
@@ -74,9 +74,8 @@ def test_optimizer(rule_map, want):
 
 
 def test_inline_rules_ebnf():
-    rule_map = build_rule_map(EBNF_GRAMMAR)
-    optimized = inline_rules(
-        rule_map,
+    rule_map = optimize2(
+        build_rule_map(EBNF_GRAMMAR),
         {
             "grammar",
             "rule",
@@ -90,4 +89,4 @@ def test_inline_rules_ebnf():
             "atom",
         },
     )
-    print(to_ebnf(Grammar.create(**optimized)))
+    print(to_ebnf(Grammar.create(**rule_map)))

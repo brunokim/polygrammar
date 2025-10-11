@@ -1,5 +1,5 @@
 from polygrammar.model import *
-from polygrammar.model import transform
+from polygrammar.model import is_case_sensitive, is_ignored, is_token, transform
 
 
 def to_range(group):
@@ -85,8 +85,8 @@ def inline_rules(rule_map, has_visitor_method):
         base_expr = rule_map[name]
         if (
             name not in has_visitor_method
-            or base_expr.has_meta("token")
-            or base_expr.has_meta("_", "ignore")
+            or is_token(base_expr)
+            or is_ignored(base_expr)
         ):
             # Can't inline elements of rule that has a visitor method,
             # because this may change the number of elements passed to it.
@@ -108,6 +108,41 @@ def inline_rules(rule_map, has_visitor_method):
         inline(Symbol(name))
 
     return new_rules
+
+
+def string_to_charset(rule_map):
+    def f(expr):
+        if not isinstance(expr, String):
+            return expr
+        value = expr.value
+        if len(value) == 1:
+            if not is_case_sensitive(expr):
+                return Charset.create(value)
+            if value.lower() != value.upper():
+                return Charset.create(value.lower(), value.upper())
+            return Charset.create(value)
+        return expr
+
+    return {name: transform(expr, f) for name, expr in rule_map.items()}
+
+
+def coalesce_charsets(rule_map):
+    def f(expr):
+        match expr:
+            case Alt(_):
+                pass
+            case Diff(_, _):
+                pass
+            case _:
+                return expr
+
+    return {name: transform(expr, f) for name, expr in rule_map.items()}
+
+
+def optimize2(rule_map, has_visitor_method):
+    rule_map = inline_rules(rule_map, has_visitor_method)
+    rule_map = string_to_charset(rule_map)
+    return rule_map
 
 
 def optimize(rule_map, with_visitor=None):

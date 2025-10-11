@@ -371,6 +371,25 @@ def symbols(e: Expr):
     return set(walk(e, f))
 
 
+# Metadata predicates
+
+
+def is_token(expr):
+    return expr.has_meta("token")
+
+
+def is_ignored(expr):
+    return expr.has_meta("_", "ignore")
+
+
+def is_case_sensitive(expr):
+    if expr.has_meta("i"):
+        return False
+    if expr.has_meta("s"):
+        return True
+    return expr.get_meta("case_sensitive", True)
+
+
 # Visitor
 
 

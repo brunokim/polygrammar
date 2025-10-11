@@ -6,6 +6,7 @@ from attrs import define, evolve, field, frozen
 from attrs.validators import instance_of, optional
 
 from polygrammar.model import *
+from polygrammar.model import is_case_sensitive, is_ignored, is_token
 from polygrammar.runtime import Runtime
 
 __all__ = ["Parser", "ParseError"]
@@ -129,19 +130,19 @@ class ParseJob:
         stack.reverse()
         self._debug_stacks.append((msg, stack))
 
-    def _parse_symbol(self, state, name, is_ignored=False, is_token=False):
+    def _parse_symbol(self, state, name, ignore=False, token=False):
         if self.parser._rt is None:
             raise ValueError("Can't parse symbol {name!r}, no grammar provided")
         expr = self.parser._rt.rule_map[name]
 
-        if is_ignored or expr.has_meta("_", "ignore"):
-            yield from self._parse_expr(state, expr, is_ignored=True)
+        if ignore or is_ignored(expr):
+            yield from self._parse_expr(state, expr, ignore=True)
             return
 
         results = state.results
-        for st in self._parse_expr(evolve(state, results=[]), expr, is_token=is_token):
+        for st in self._parse_expr(evolve(state, results=[]), expr, token=token):
             args = st.results
-            if is_token or expr.has_meta("token"):
+            if token or is_token(expr):
                 result = "".join(args)
                 if visit_token := self.parser._rt.method_map.get(name):
                     result = visit_token(result)
@@ -154,23 +155,19 @@ class ParseJob:
 
     def _parse_expr(self, state, expr, **kwargs):
         self._max_offset = max(self._max_offset, state.offset)
-        if expr.has_meta("_", "ignore"):
-            kwargs["is_ignored"] = True
-        if expr.has_meta("token"):
-            kwargs["is_token"] = True
+        if is_ignored(expr):
+            kwargs["ignore"] = True
+        if is_token(expr):
+            kwargs["token"] = True
         match expr:
             case Alt(exprs):
                 yield from self._parse_alt(state, exprs, **kwargs)
             case Cat(exprs):
                 yield from self._parse_cat(state, exprs, **kwargs)
             case String(value):
-                if expr.has_meta("i"):
-                    is_case_sensitive = False
-                elif expr.has_meta("s"):
-                    is_case_sensitive = True
-                else:
-                    is_case_sensitive = expr.get_meta("case_sensitive", True)
-                yield from self._parse_string(state, value, is_case_sensitive, **kwargs)
+                yield from self._parse_string(
+                    state, value, is_case_sensitive(expr), **kwargs
+                )
             case Symbol(name):
                 yield from self._parse_symbol(state, name, **kwargs)
             case Repeat(expr, min_, max_):
@@ -210,14 +207,12 @@ class ParseJob:
         if min == 0:
             yield state
 
-    def _parse_string(
-        self, state, value, is_case_sensitive, is_ignored=False, **kwargs
-    ):
+    def _parse_string(self, state, value, case_sensitive, ignore=False, **kwargs):
         start = state.offset
         end = start + len(value)
 
         text = self.text[start:end]
-        if is_case_sensitive:
+        if case_sensitive:
             is_match = text == value
         else:
             is_match = text.lower() == value.lower()
@@ -225,16 +220,16 @@ class ParseJob:
         if not is_match:
             if state.offset == self._debug_offset:
                 self._debug(
-                    f"string: {self.text[start:end]!r} != {value!r} ({is_case_sensitive=})"
+                    f"string: {self.text[start:end]!r} != {value!r} ({case_sensitive=})"
                 )
             return
 
         results = state.results
-        if not is_ignored:
+        if not ignore:
             results = results + [text]
         yield evolve(state, offset=end, results=results)
 
-    def _parse_charset(self, state, groups, is_ignored=False, **kwargs):
+    def _parse_charset(self, state, groups, ignore=False, **kwargs):
         if state.offset >= len(self.text):
             if state.offset == self._debug_offset:
                 self._debug("charset: EOF")
@@ -262,7 +257,7 @@ class ParseJob:
 
         offset = state.offset + 1
         results = state.results
-        if not is_ignored:
+        if not ignore:
             results = results + [ch]
         yield evolve(state, offset=offset, results=results)
 
