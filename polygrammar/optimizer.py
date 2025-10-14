@@ -115,13 +115,13 @@ def string_to_charset(rule_map):
         if not isinstance(expr, String):
             return expr
         value = expr.value
-        if len(value) == 1:
-            if not is_case_sensitive(expr):
-                return Charset.create(value)
-            if value.lower() != value.upper():
-                return Charset.create(value.lower(), value.upper())
+        if len(value) != 1:
+            return expr
+        if is_case_sensitive(expr):
             return Charset.create(value)
-        return expr
+        if value.lower() != value.upper():
+            return Charset.create(value.lower(), value.upper())
+        return Charset.create(value)
 
     return {name: transform(expr, f) for name, expr in rule_map.items()}
 

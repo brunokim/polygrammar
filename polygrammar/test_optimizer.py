@@ -3,8 +3,9 @@ from textwrap import dedent
 import pytest
 
 from polygrammar.grammars.ebnf import EBNF_GRAMMAR, parse_ebnf, to_ebnf
+from polygrammar.grammars.lisp import parse_lisp_grammar
 from polygrammar.model import *
-from polygrammar.optimizer import inline_rules, optimize, optimize2
+from polygrammar.optimizer import inline_rules, optimize, optimize2, string_to_charset
 from polygrammar.runtime import build_rule_map
 
 
@@ -30,6 +31,34 @@ def test_inline_rules(grammar, has_visitor, output):
     rule_map = build_rule_map(parse_ebnf(grammar))
     want = build_rule_map(parse_ebnf(output))
     assert inline_rules(rule_map, has_visitor) == want
+
+
+def test_string_to_charset():
+    rule_map = build_rule_map(
+        parse_lisp_grammar(
+            """
+            (grammar (rule s
+                "A"
+                #i "b"
+                #s "C"
+                #i "/"
+                "efg"))
+            """
+        )
+    )
+    want = build_rule_map(
+        parse_lisp_grammar(
+            """
+            (grammar (rule s
+                (charset "A")
+                (charset "b" "B")
+                (charset "C")
+                (charset "/")
+                "efg"))
+            """
+        )
+    )
+    assert string_to_charset(rule_map) == want
 
 
 @pytest.mark.parametrize(
@@ -73,7 +102,7 @@ def test_optimizer(rule_map, want):
     assert optimize(rule_map) == want
 
 
-def test_inline_rules_ebnf():
+def test_optimize_ebnf():
     rule_map = optimize2(
         build_rule_map(EBNF_GRAMMAR),
         {

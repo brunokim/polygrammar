@@ -271,7 +271,6 @@ class LispGrammarVisitor(LispVisitor):
                 cls = lisp_name[name]
                 if name in {"symbol", "string", "char", "end_of_file"}:
                     return cls(*args)
-                args = (arg.value if isinstance(arg, String) else arg for arg in args)
                 return cls.create(*args)
             case _:
                 return values
