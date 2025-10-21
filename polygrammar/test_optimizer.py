@@ -9,7 +9,6 @@ from polygrammar.optimizer import (
     coalesce_charsets,
     inline_rules,
     optimize,
-    optimize2,
     string_to_charset,
 )
 from polygrammar.runtime import build_rule_map
@@ -126,11 +125,11 @@ def test_coalesce_charsets(grammar, want):
 def test_optimizer(rule_map, want):
     rule_map = build_rule_map(parse_ebnf(rule_map))
     want = build_rule_map(parse_ebnf(want))
-    assert optimize(rule_map) == want
+    assert optimize(rule_map, {}) == want
 
 
 def test_optimize_ebnf():
-    rule_map = optimize2(
+    rule_map = optimize(
         build_rule_map(EBNF_GRAMMAR),
         {
             "grammar",

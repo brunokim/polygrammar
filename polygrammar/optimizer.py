@@ -140,7 +140,7 @@ def coalesce_charsets(rule_map):
                     curr = new_exprs[-1]
                     match curr, e:
                         case Charset(g1), Charset(g2):
-                            new_exprs[-1] = Charset(add_groups(g1, g2))
+                            new_exprs[-1] = Charset.create(*add_groups(g1, g2))
                         case _:
                             new_exprs.append(e)
                 return Alt.create(*new_exprs)
@@ -156,63 +156,8 @@ def coalesce_charsets(rule_map):
     return {name: transform(expr, f) for name, expr in rule_map.items()}
 
 
-def optimize2(rule_map, has_visitor_method):
+def optimize(rule_map, has_visitor_method):
     rule_map = inline_rules(rule_map, has_visitor_method)
     rule_map = string_to_charset(rule_map)
+    rule_map = coalesce_charsets(rule_map)
     return rule_map
-
-
-def optimize(rule_map, with_visitor=None):
-    if with_visitor is None:
-        with_visitor = set()
-    seen = set()
-    visited = set()
-
-    def optimize_expr(expr):
-        match expr:
-            case String(value):
-                if len(value) == 1:
-                    return Charset.create(value)
-                return expr
-            case Symbol(name):
-                if name in with_visitor:
-                    # Do not inline names that must be called by visitor.
-                    return rule_map[name]
-                if name in seen and name not in visited:
-                    # Self-referential name can't be inlined.
-                    return expr
-                seen.add(name)
-                if name not in visited:
-                    rule_map[name] = optimize_expr(rule_map[name])
-                visited.add(name)
-                return rule_map[name]
-            case Alt(exprs):
-                new_exprs = []
-                for e in exprs:
-                    e = optimize_expr(e)
-                    if not new_exprs:
-                        new_exprs.append(e)
-                        continue
-                    curr = new_exprs[-1]
-                    match curr, e:
-                        case Charset(g1), Charset(g2):
-                            new_exprs[-1] = Charset(g1 + g2)
-                        case _:
-                            new_exprs.append(e)
-                return Alt.create(*new_exprs)
-            case Diff(base, diff):
-                base = optimize_expr(base)
-                diff = optimize_expr(diff)
-                match base, diff:
-                    case Charset(g1), Charset(g2):
-                        return Charset(subtract_groups(g1, g2))
-                    case _:
-                        return Diff(base, diff)
-            case Cat(exprs):
-                return Cat(optimize_expr(e) for e in exprs)
-            case Repeat(expr, min, max):
-                return Repeat.create(optimize_expr(expr), min=min, max=max)
-            case _:
-                return expr
-
-    return {name: optimize_expr(Symbol(name)) for name, expr in rule_map.items()}
