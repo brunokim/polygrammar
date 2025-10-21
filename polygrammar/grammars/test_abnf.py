@@ -171,6 +171,7 @@ def test_parse_abnf_grammar():
 
 def test_self_parse():
     text = to_abnf(STRICT_ABNF_GRAMMAR)
+    print(text)
     assert parse_abnf(text, strict_newlines=True) == STRICT_ABNF_GRAMMAR
 
 

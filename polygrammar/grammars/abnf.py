@@ -26,7 +26,7 @@ def abnf_priority(self: Cat) -> int:
 
 
 @multimethod
-def abnf_priority(self: Repeat) -> int:
+def abnf_priority(self: Repeat | Optional | ZeroOrMore | OneOrMore) -> int:
     return 25
 
 
@@ -97,7 +97,20 @@ def to_abnf(obj: Repeat):
 
 @multimethod
 def to_abnf(obj: Optional):
-    return f"[ {to_abnf(obj.expr)} ]"
+    expr = to_abnf(obj.expr, abnf_priority(obj))
+    return f"[ {expr} ]"
+
+
+@multimethod
+def to_abnf(obj: ZeroOrMore):
+    expr = to_abnf(obj.expr, abnf_priority(obj))
+    return f"*{expr}"
+
+
+@multimethod
+def to_abnf(obj: OneOrMore):
+    expr = to_abnf(obj.expr, abnf_priority(obj))
+    return f"1*{expr}"
 
 
 @multimethod

@@ -87,127 +87,7 @@ class Expr(Node):
         return self.metadata.get(Symbol(name), default)
 
 
-@frozen
-class Alt(Expr):
-    exprs: tuple[Expr, ...] = field(
-        converter=tuple, validator=[min_len(2), deep_iterable(instance_of(Expr))]
-    )
-
-    @property
-    def children(self):
-        return self.exprs
-
-    @classmethod
-    def create(cls, *exprs: Expr) -> Expr:
-        exprs = (to_string(expr) for expr in exprs)
-        # Expand nested Alts.
-        exprs2 = []
-        for expr in exprs:
-            if isinstance(expr, Alt):
-                exprs2.extend(expr.exprs)
-            else:
-                exprs2.append(expr)
-        exprs = exprs2
-
-        # Simplify if only one expr.
-        if len(exprs) == 1:
-            return exprs[0]
-
-        return cls(exprs)
-
-
-@frozen
-class Cat(Expr):
-    exprs: tuple[Expr, ...] = field(
-        converter=tuple, validator=[min_len(2), deep_iterable(instance_of(Expr))]
-    )
-
-    @property
-    def children(self):
-        return self.exprs
-
-    @classmethod
-    def create(cls, *exprs: Expr) -> Expr:
-        exprs = (to_string(expr) for expr in exprs)
-        # Expand nested Cats.
-        exprs2 = []
-        for expr in exprs:
-            if isinstance(expr, Cat):
-                exprs2.extend(expr.exprs)
-            else:
-                exprs2.append(expr)
-        exprs = exprs2
-
-        # Simplify if only one expr.
-        if len(exprs) == 1:
-            return exprs[0]
-
-        return cls(exprs)
-
-
-@frozen
-class Repeat(Expr):
-    expr: Expr = field(validator=instance_of(Expr))
-    min: int = field(validator=[instance_of(int), ge(0)], default=0)
-    max: int | None = field(
-        validator=optional(and_(instance_of(int), ge(0))), default=None
-    )
-
-    def __attrs_post_init__(self):
-        if self.max is not None and self.min > self.max:
-            raise ValueError(f"{self.min} > {self.max}")
-
-    @property
-    def children(self):
-        return (self.expr,)
-
-    @property
-    def attributes(self):
-        return {"min": self.min, "max": self.max}
-
-    @classmethod
-    def create(cls, *exprs: Expr, min=0, max=None):
-        expr = Cat.create(*exprs)
-        if min == 0 and max is None:
-            return ZeroOrMore(expr)
-        if min == 0 and max == 1:
-            return Optional(expr)
-        if min == 1 and max is None:
-            return OneOrMore(expr)
-        return cls(expr, min, max)
-
-
-@frozen
-class Optional(Repeat):
-    def __init__(self, expr: Expr):
-        super().__init__(expr, 0, 1)
-
-    @classmethod
-    def create(cls, *exprs: Expr, **kwargs):
-        expr = Cat.create(*exprs)
-        return cls(expr)
-
-
-@frozen
-class ZeroOrMore(Repeat):
-    def __init__(self, expr: Expr):
-        super().__init__(expr, 0)
-
-    @classmethod
-    def create(cls, *exprs: Expr, **kwargs):
-        expr = Cat.create(*exprs)
-        return cls(expr)
-
-
-@frozen
-class OneOrMore(Repeat):
-    def __init__(self, expr: Expr):
-        super().__init__(expr, 1)
-
-    @classmethod
-    def create(cls, *exprs: Expr, **kwargs):
-        expr = Cat.create(*exprs)
-        return cls(expr)
+# Terminal expressions
 
 
 @frozen
@@ -226,6 +106,107 @@ class EndOfFile(Expr):
 
 class Empty(Expr):
     pass
+
+
+# Composite expressions
+
+
+@frozen
+class _ManyExprs(Expr):
+    exprs: tuple[Expr, ...] = field(
+        converter=tuple, validator=[min_len(2), deep_iterable(instance_of(Expr))]
+    )
+
+    @property
+    def children(self):
+        return self.exprs
+
+    @classmethod
+    def create(cls, *exprs: Expr) -> Expr:
+        exprs = (to_string(expr) for expr in exprs)
+        # Expand nested elements.
+        exprs2 = []
+        for expr in exprs:
+            if isinstance(expr, cls):
+                exprs2.extend(expr.exprs)
+            else:
+                exprs2.append(expr)
+        exprs = exprs2
+
+        # Simplify if only one expr.
+        if len(exprs) == 1:
+            return exprs[0]
+
+        return cls(exprs)
+
+
+@frozen
+class Alt(_ManyExprs):
+    pass
+
+
+@frozen
+class Cat(_ManyExprs):
+    pass
+
+
+@frozen
+class _SingleExpr(Expr):
+    expr: Expr = field(validator=instance_of(Expr))
+
+    @property
+    def children(self):
+        return (self.expr,)
+
+    @classmethod
+    def create(cls, *exprs: Expr):
+        expr = Cat.create(*exprs)
+        return cls(expr)
+
+
+@frozen
+class Optional(_SingleExpr):
+    pass
+
+
+@frozen
+class ZeroOrMore(_SingleExpr):
+    pass
+
+
+@frozen
+class OneOrMore(_SingleExpr):
+    pass
+
+
+@frozen
+class Repeat(_SingleExpr):
+    min: int = field(validator=[instance_of(int), ge(0)], default=0)
+    max: int | None = field(
+        validator=optional(and_(instance_of(int), ge(0))), default=None
+    )
+
+    def __attrs_post_init__(self):
+        if self.max is not None and self.min > self.max:
+            raise ValueError(f"{self.min} > {self.max}")
+
+    @property
+    def attributes(self):
+        return {"min": self.min, "max": self.max}
+
+    @classmethod
+    def create(cls, *exprs: Expr, min=0, max=None):
+        expr = Cat.create(*exprs)
+        if min == 0 and max is None:
+            return ZeroOrMore(expr)
+        if min == 0 and max == 1:
+            return Optional(expr)
+        if min == 1 and max is None:
+            return OneOrMore(expr)
+        return cls(expr, min, max)
+
+
+# Charset expression.
 
 
 @frozen
@@ -301,6 +282,9 @@ class CharsetDiff(Diff):
         for expr in exprs:
             base = cls(base, to_charset(to_char(expr)))
         return base
+
+
+# Grammar components
 
 
 @frozen
