@@ -32,30 +32,27 @@ ESCAPE = CombinedEscapes(
 
 # to_lisp
 
-
-lisp_name = {
-    "symbol": Symbol,
-    "string": String,
-    "char": Char,
-    "end_of_file": EndOfFile,
-    "alt": Alt,
-    "|": Alt,
-    "cat": Cat,
-    "repeat": Repeat,
-    "optional": Optional,
-    "?": Optional,
-    "zero_or_more": ZeroOrMore,
-    "*": ZeroOrMore,
-    "one_or_more": OneOrMore,
-    "+": OneOrMore,
-    "char_range": CharRange,
-    "charset": Charset,
-    "diff": Diff,
-    "-": Diff,
-    "charset_diff": CharsetDiff,
-    "rule": Rule,
-    "grammar": Grammar,
+type_names = {
+    Symbol: ["symbol"],
+    String: ["string"],
+    Char: ["char"],
+    EndOfFile: ["end_of_file"],
+    Alt: ["alt", "|"],
+    Cat: ["cat"],
+    Repeat: ["repeat"],
+    Optional: ["optional", "?"],
+    ZeroOrMore: ["zero_or_more", "*"],
+    OneOrMore: ["one_or_more", "+"],
+    CharRange: ["char_range"],
+    Charset: ["charset"],
+    Diff: ["diff", "-"],
+    CharsetDiff: ["charset_diff"],
+    Rule: ["rule"],
+    Grammar: ["grammar"],
 }
+
+
+lisp_name = {name: cls for cls, names in type_names.items() for name in names}
 
 
 @multimethod
@@ -74,38 +71,14 @@ def to_lisp(self: String):
 
 
 @multimethod
-def to_lisp(self: EndOfFile):
-    return (Symbol("end_of_file"),)
-
-
-@multimethod
-def to_lisp(self: Alt):
-    return (Symbol("alt"),) + tuple(to_lisp(expr) for expr in self.exprs)
-
-
-@multimethod
-def to_lisp(self: Cat):
-    return (Symbol("cat"),) + tuple(to_lisp(expr) for expr in self.exprs)
+def to_lisp(self: Expr):
+    name = type_names[type(self)][0]
+    return (Symbol(name),) + tuple(to_lisp(child) for child in self.children)
 
 
 @multimethod
 def to_lisp(self: Repeat):
     return (Symbol("repeat"), to_lisp(self.expr), self.min, self.max)
-
-
-@multimethod
-def to_lisp(self: Optional):
-    return (Symbol("optional"), to_lisp(self.expr))
-
-
-@multimethod
-def to_lisp(self: ZeroOrMore):
-    return (Symbol("zero_or_more"), to_lisp(self.expr))
-
-
-@multimethod
-def to_lisp(self: OneOrMore):
-    return (Symbol("one_or_more"), to_lisp(self.expr))
 
 
 @multimethod
@@ -116,21 +89,6 @@ def to_lisp(self: Char):
 @multimethod
 def to_lisp(self: CharRange):
     return (Symbol("char_range"), to_lisp(self.start), to_lisp(self.end))
-
-
-@multimethod
-def to_lisp(self: Charset):
-    return (Symbol("charset"),) + tuple(to_lisp(g) for g in self.groups)
-
-
-@multimethod
-def to_lisp(self: Diff):
-    return (Symbol("diff"), to_lisp(self.base), to_lisp(self.diff))
-
-
-@multimethod
-def to_lisp(self: CharsetDiff):
-    return (Symbol("charset_diff"), to_lisp(self.base), to_lisp(self.diff))
 
 
 @multimethod
