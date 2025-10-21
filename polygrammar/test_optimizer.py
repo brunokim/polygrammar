@@ -5,7 +5,13 @@ import pytest
 from polygrammar.grammars.ebnf import EBNF_GRAMMAR, parse_ebnf, to_ebnf
 from polygrammar.grammars.lisp import parse_lisp_grammar
 from polygrammar.model import *
-from polygrammar.optimizer import inline_rules, optimize, optimize2, string_to_charset
+from polygrammar.optimizer import (
+    coalesce_charsets,
+    inline_rules,
+    optimize,
+    optimize2,
+    string_to_charset,
+)
 from polygrammar.runtime import build_rule_map
 
 
@@ -59,6 +65,27 @@ def test_string_to_charset():
         )
     )
     assert string_to_charset(rule_map) == want
+
+
+@pytest.mark.parametrize(
+    "grammar, want",
+    [
+        ("s = [abc] | [def];", "s = [abcdef];"),
+        ("s = [abc] | [def] | 'str' ;", "s = [abcdef] | 'str' ;"),
+        ("s = [abc] | 'str' | [def] ;", "s = [abc] | 'str' | [def] ;"),
+        ("s = [a-z] - [m];", "s = [a-ln-z];"),
+        ("s = [a-f] - [u-z];", "s = [a-f];"),
+        ("s = [u-z] - [a-f];", "s = [u-z];"),
+        ("s = [a-f] - [d-z];", "s = [a-c];"),
+        ("s = [f-z] - [a-m];", "s = [n-z];"),
+        ("s = [a-z] - [f-m];", "s = [a-en-z];"),
+        ("s = [f-m] - [a-z];", "s = '';"),
+    ],
+)
+def test_coalesce_charsets(grammar, want):
+    rule_map = build_rule_map(parse_ebnf(grammar))
+    want = build_rule_map(parse_ebnf(want))
+    assert coalesce_charsets(rule_map) == want
 
 
 @pytest.mark.parametrize(

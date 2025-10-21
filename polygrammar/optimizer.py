@@ -12,6 +12,11 @@ def to_range(group):
             raise ValueError(f"Invalid group: {group}")
 
 
+def add_groups(g1, g2):
+    # TODO: coalesce redundant groups.
+    return g1 + g2
+
+
 def subtract_groups(base, diff):
     base_ranges = sorted(to_range(g) for g in base)
     diff_ranges = sorted(to_range(g) for g in diff)
@@ -129,10 +134,22 @@ def string_to_charset(rule_map):
 def coalesce_charsets(rule_map):
     def f(expr):
         match expr:
-            case Alt(_):
-                pass
-            case Diff(_, _):
-                pass
+            case Alt(exprs):
+                new_exprs = [exprs[0]]
+                for e in exprs[1:]:
+                    curr = new_exprs[-1]
+                    match curr, e:
+                        case Charset(g1), Charset(g2):
+                            new_exprs[-1] = Charset(add_groups(g1, g2))
+                        case _:
+                            new_exprs.append(e)
+                return Alt.create(*new_exprs)
+            case Diff(base, diff):
+                match base, diff:
+                    case Charset(g1), Charset(g2):
+                        return Charset.create(*subtract_groups(g1, g2))
+                    case _:
+                        return Diff(base, diff)
             case _:
                 return expr
 
