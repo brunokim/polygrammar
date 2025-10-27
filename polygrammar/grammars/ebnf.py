@@ -54,7 +54,7 @@ def ebnf_priority(self: Cat) -> int:
 
 
 @multimethod
-def ebnf_priority(self: Repeat) -> int:
+def ebnf_priority(self: Repeat | Optional | ZeroOrMore | OneOrMore) -> int:
     return 25
 
 
