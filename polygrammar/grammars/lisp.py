@@ -37,6 +37,7 @@ type_names = {
     String: ["string"],
     Char: ["char"],
     EndOfFile: ["end_of_file"],
+    Regexp: ["regexp"],
     Alt: ["alt", "|"],
     Cat: ["cat"],
     Repeat: ["repeat"],
@@ -68,6 +69,11 @@ def to_lisp(self: Symbol):
 @multimethod
 def to_lisp(self: String):
     return self.value
+
+
+@multimethod
+def to_lisp(self: Regexp):
+    return (Symbol("regexp"), self.pattern)
 
 
 @multimethod

@@ -396,6 +396,14 @@ def diffs(e: Expr):
     return set(walk(e, f))
 
 
+def ignored_exprs(e: Expr):
+    def f(e):
+        if isinstance(e, Expr) and is_ignored(e):
+            yield e
+
+    return set(walk(e, f))
+
+
 # Metadata predicates
 
 

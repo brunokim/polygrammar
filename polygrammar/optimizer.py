@@ -4,6 +4,7 @@ from polygrammar.grammars.python_re_writer import to_python_re
 from polygrammar.model import *
 from polygrammar.model import (
     diffs,
+    ignored_exprs,
     is_case_sensitive,
     is_ignored,
     is_token,
@@ -191,10 +192,10 @@ def coalesce_charsets(rule_map):
 def convert_to_regexp(rule_map):
     @preserve_metadata
     def f(expr):
-        if symbols(expr) or diffs(expr):
+        if symbols(expr) or diffs(expr) or ignored_exprs(expr):
             # Not a regular expression.
             return expr
-        if not is_token(expr) or not is_ignored(expr):
+        if not (is_token(expr) or is_ignored(expr)):
             # Regexp may change number of output tokens.
             return expr
         return Regexp(to_python_re(expr))

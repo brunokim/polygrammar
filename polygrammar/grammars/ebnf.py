@@ -29,6 +29,23 @@ CHAR_ESCAPE = CombinedEscapes(
         UNICODE_BACKSLASH_ESCAPE,
     ]
 )
+REGEXP_ESCAPE = CombinedEscapes(
+    [
+        SingleCharBackslash(
+            {
+                "/": "/",
+                "\a": "a",
+                "\b": "b",
+                "\f": "f",
+                "\n": "n",
+                "\r": "r",
+                "\t": "t",
+                "\v": "v",
+            }
+        ),
+        UNICODE_BACKSLASH_ESCAPE,
+    ]
+)
 
 # ebnf_priority
 
@@ -139,6 +156,17 @@ def to_ebnf(self: String) -> str:
 
     escaped = escape.serialize(self.value)
     return quote + escaped + quote
+
+
+@multimethod
+def to_ebnf(self: Empty) -> str:
+    return '""'
+
+
+@multimethod
+def to_ebnf(self: Regexp) -> str:
+    pattern = REGEXP_ESCAPE.serialize(self.pattern)
+    return f"/{pattern}/"
 
 
 @multimethod

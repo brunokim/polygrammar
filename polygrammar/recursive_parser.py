@@ -192,7 +192,7 @@ class ParseJob:
             case EndOfFile():
                 yield from self._parse_end_of_file(state, **kwargs)
             case Regexp(pattern):
-                yield from self._parse_regexp(state, pattern, *kwargs)
+                yield from self._parse_regexp(state, pattern, **kwargs)
             case _:
                 raise NotImplementedError(f"Unknown expr type: {type(expr).__name__}")
 
