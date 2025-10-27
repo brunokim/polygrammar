@@ -2,7 +2,7 @@ import re
 
 import pytest
 
-from polygrammar.grammars.python_re import to_python_re
+from polygrammar.grammars.python_re_writer import to_python_re
 from polygrammar.model import *
 
 
