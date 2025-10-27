@@ -5,7 +5,7 @@ from typing import Callable
 from attrs import field, frozen
 from attrs.validators import deep_mapping, instance_of, is_callable
 
-from polygrammar.model import Alt, Cat, Expr, Grammar, Symbol, Visitor, symbols
+from polygrammar.model import Alt, Cat, Expr, Grammar, Visitor, symbols
 from polygrammar.optimizer import inline_rules
 
 BASE_OPTIONS = {"ignore", "warn", "error"}
@@ -34,18 +34,19 @@ def build_rule_map(grammar, on_duplicate_rule="error"):
     duplicate_rules = []
     for rule in grammar.rules:
         name = rule.name.name
+        expr = rule.expr
         if name[0] == "_":
-            rule.expr.__meta__.append(Symbol("ignore"))
+            expr = expr.with_meta("ignore")
         if name[0].isupper():
-            rule.expr.__meta__.append(Symbol("token"))
+            expr = expr.with_meta("token")
         if name not in rule_map or on_duplicate_rule == "overrides":
-            rule_map[name] = rule.expr
+            rule_map[name] = expr
             continue
         if rule.is_additional_alt or on_duplicate_rule == "overloads":
-            rule_map[name] = Alt.create(rule_map[name], rule.expr)
+            rule_map[name] = Alt.create(rule_map[name], expr)
             continue
         if rule.is_additional_cat:
-            rule_map[name] = Cat.create(rule_map[name], rule.expr)
+            rule_map[name] = Cat.create(rule_map[name], expr)
             continue
         duplicate_rules.append(name)
 

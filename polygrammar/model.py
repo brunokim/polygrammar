@@ -1,15 +1,17 @@
 from collections.abc import Mapping
 
-from attrs import field, frozen
+from attrs import evolve, field, frozen
 from attrs.validators import (
     and_,
     deep_iterable,
+    deep_mapping,
     ge,
     instance_of,
     max_len,
     min_len,
     optional,
 )
+from frozendict import frozendict
 
 __all__ = [
     "Node",
@@ -64,27 +66,20 @@ class Node:
 
 @frozen
 class Expr(Node):
-    __meta__: list = field(init=False, eq=False, hash=False, repr=False, factory=list)
+    metadata: Mapping[str, str | None] = field(
+        kw_only=True,
+        eq=False,
+        hash=False,
+        repr=False,
+        factory=frozendict,
+        validator=deep_mapping(instance_of(str), optional(instance_of(str))),
+    )
 
-    @property
-    def metadata(self):
-        d = {}
-        for x in self.__meta__:
-            match x:
-                case [k, v]:
-                    d[k] = v
-                case Mapping():
-                    d.update(x)
-                case _:
-                    d[x] = True
-        return d
+    def with_meta(self, name, value=None):
+        return evolve(self, metadata=self.metadata.set(name, value))
 
-    def has_meta(self, *names):
-        meta = self.metadata
-        return any(Symbol(name) in meta for name in names)
-
-    def get_meta(self, name, default=None):
-        return self.metadata.get(Symbol(name), default)
+    def has_meta(self, *names: str) -> bool:
+        return any(name in self.metadata for name in names)
 
 
 @frozen
@@ -178,34 +173,43 @@ class Repeat(Expr):
 
 
 @frozen
-class Optional(Repeat):
-    def __init__(self, expr: Expr):
-        super().__init__(expr, 0, 1)
+class Optional(Expr):
+    expr: Expr = field(validator=instance_of(Expr))
+
+    @property
+    def children(self):
+        return (self.expr,)
 
     @classmethod
-    def create(cls, *exprs: Expr, **kwargs):
+    def create(cls, *exprs: Expr):
         expr = Cat.create(*exprs)
         return cls(expr)
 
 
 @frozen
-class ZeroOrMore(Repeat):
-    def __init__(self, expr: Expr):
-        super().__init__(expr, 0)
+class ZeroOrMore(Expr):
+    expr: Expr = field(validator=instance_of(Expr))
+
+    @property
+    def children(self):
+        return (self.expr,)
 
     @classmethod
-    def create(cls, *exprs: Expr, **kwargs):
+    def create(cls, *exprs: Expr):
         expr = Cat.create(*exprs)
         return cls(expr)
 
 
 @frozen
-class OneOrMore(Repeat):
-    def __init__(self, expr: Expr):
-        super().__init__(expr, 1)
+class OneOrMore(Expr):
+    expr: Expr = field(validator=instance_of(Expr))
+
+    @property
+    def children(self):
+        return (self.expr,)
 
     @classmethod
-    def create(cls, *exprs: Expr, **kwargs):
+    def create(cls, *exprs: Expr):
         expr = Cat.create(*exprs)
         return cls(expr)
 
@@ -390,11 +394,11 @@ def is_ignored(expr):
 
 
 def is_case_sensitive(expr):
-    if expr.has_meta("i"):
-        return False
-    if expr.has_meta("s"):
+    if expr.has_meta("s", "case_sensitive"):
         return True
-    return expr.get_meta("case_sensitive", True)
+    if expr.has_meta("i", "case_insensitive"):
+        return False
+    return True
 
 
 # Visitor

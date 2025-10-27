@@ -172,6 +172,12 @@ class ParseJob:
                 yield from self._parse_symbol(state, name, **kwargs)
             case Repeat(expr, min_, max_):
                 yield from self._parse_repeat(state, expr, min_, max_, **kwargs)
+            case Optional(expr):
+                yield from self._parse_repeat(state, expr, 0, 1, **kwargs)
+            case ZeroOrMore(expr):
+                yield from self._parse_repeat(state, expr, 0, None, **kwargs)
+            case OneOrMore(expr):
+                yield from self._parse_repeat(state, expr, 1, None, **kwargs)
             case Charset(groups):
                 yield from self._parse_charset(state, groups, **kwargs)
             case Diff(base, diff):
