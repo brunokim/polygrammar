@@ -112,20 +112,12 @@ def test_parse_lisp_data(text, data):
     "text, value, metadata",
     [
         ("x", Symbol("x"), {}),
-        ("#a x", Symbol("x"), {Symbol("a"): True}),
-        ("#b x", Symbol("x"), {Symbol("b"): True}),
-        ("#a #b x", Symbol("x"), {Symbol("a"): True, Symbol("b"): True}),
-        ("#(a b) x", Symbol("x"), {Symbol("a"): Symbol("b")}),
-        (
-            "#(a b) #(c d) x",
-            Symbol("x"),
-            {Symbol("a"): Symbol("b"), Symbol("c"): Symbol("d")},
-        ),
-        (
-            '#i#j#k"x"',
-            String("x"),
-            {Symbol("i"): True, Symbol("j"): True, Symbol("k"): True},
-        ),
+        ("#a x", Symbol("x"), {"a": None}),
+        ("#b x", Symbol("x"), {"b": None}),
+        ("#a #b x", Symbol("x"), {"a": None, "b": None}),
+        ('#(a "b") x', Symbol("x"), {"a": "b"}),
+        ('#(a "b") #(c "d") x', Symbol("x"), {"a": "b", "c": "d"}),
+        ('#i#j#k"x"', String("x"), {"i": None, "j": None, "k": None}),
     ],
 )
 def test_parse_annotation(text, value, metadata):

@@ -26,7 +26,7 @@ def abnf_priority(self: Cat) -> int:
 
 
 @multimethod
-def abnf_priority(self: Repeat | Optional | ZeroOrMore | OneOrMore) -> int:
+def abnf_priority(self: Repeat | OneOrMore | ZeroOrMore | Optional) -> int:
     return 25
 
 
@@ -97,8 +97,7 @@ def to_abnf(obj: Repeat):
 
 @multimethod
 def to_abnf(obj: Optional):
-    expr = to_abnf(obj.expr, abnf_priority(obj))
-    return f"[ {expr} ]"
+    return f"[ {to_abnf(obj.expr)} ]"
 
 
 @multimethod
@@ -304,13 +303,12 @@ class AbnfVisitor(Visitor):
 
     def visit_case_sensitive_string(self, *args):
         _, arg = args
-        arg = String(arg)
-        arg.__meta__.append(("case_sensitive", True))
+        arg = String(arg).with_meta("case_sensitive")
         return arg
 
     def visit_case_insensitive_string(self, *args):
         arg = String(args[-1])
-        arg.__meta__.append(("case_sensitive", False))
+        arg = arg.with_meta("case_insensitive")
         return arg
 
     def visit_quoted_string(self, token):

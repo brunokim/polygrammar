@@ -206,7 +206,7 @@ class LispVisitor(Visitor):
             # Convert to String to append annotations.
             value = String(value)
         for i in range(1, len(annotations), 2):
-            value.__meta__.append(annotations[i])
+            value = self.add_annotation(value, annotations[i])
         return value
 
     def visit_value(self, value):
@@ -219,6 +219,17 @@ class LispVisitor(Visitor):
         value = token[1:-1]
         value = ESCAPE.parse(value)
         return value
+
+    def add_annotation(self, v, annotation):
+        match annotation:
+            case Symbol(name):
+                return v.with_meta(name)
+            case [Symbol(name), String(value)]:
+                return v.with_meta(name, value)
+            case [Symbol(name), str() as value]:
+                return v.with_meta(name, value)
+            case _:
+                raise ValueError(f"invalid annotation {annotation}")
 
 
 class LispGrammarVisitor(LispVisitor):

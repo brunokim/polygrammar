@@ -1,15 +1,17 @@
 from collections.abc import Mapping
 
-from attrs import field, frozen
+from attrs import evolve, field, frozen
 from attrs.validators import (
     and_,
     deep_iterable,
+    deep_mapping,
     ge,
     instance_of,
     max_len,
     min_len,
     optional,
 )
+from frozendict import frozendict
 
 __all__ = [
     "Node",
@@ -51,6 +53,9 @@ def to_symbol(x):
     return Symbol(x) if isinstance(x, str) else x
 
 
+# Abstract classes
+
+
 @frozen
 class Node:
     @property
@@ -64,30 +69,66 @@ class Node:
 
 @frozen
 class Expr(Node):
-    __meta__: list = field(init=False, eq=False, hash=False, repr=False, factory=list)
+    metadata: Mapping[str, str | None] = field(
+        kw_only=True,
+        eq=False,
+        hash=False,
+        repr=False,
+        factory=frozendict,
+        validator=deep_mapping(instance_of(str), optional(instance_of(str))),
+    )
+
+    def with_meta(self, name, value=None):
+        return evolve(self, metadata=self.metadata.set(name, value))
+
+    def has_meta(self, *names: str) -> bool:
+        return any(name in self.metadata for name in names)
+
+
+@frozen
+class _SingleExpr(Expr):
+    expr: Expr = field(validator=instance_of(Expr))
 
     @property
-    def metadata(self):
-        d = {}
-        for x in self.__meta__:
-            match x:
-                case [k, v]:
-                    d[k] = v
-                case Mapping():
-                    d.update(x)
-                case _:
-                    d[x] = True
-        return d
+    def children(self):
+        return (self.expr,)
 
-    def has_meta(self, *names):
-        meta = self.metadata
-        return any(Symbol(name) in meta for name in names)
-
-    def get_meta(self, name, default=None):
-        return self.metadata.get(Symbol(name), default)
+    @classmethod
+    def create(cls, *exprs: Expr):
+        expr = Cat.create(*exprs)
+        return cls(expr)
 
 
-# Terminal expressions
+@frozen
+class _ManyExpr(Expr):
+    exprs: tuple[Expr, ...] = field(
+        converter=tuple, validator=[min_len(2), deep_iterable(instance_of(Expr))]
+    )
+
+    @property
+    def children(self):
+        return self.exprs
+
+    @classmethod
+    def create(cls, *exprs: Expr) -> Expr:
+        exprs = (to_string(expr) for expr in exprs)
+        # Expand nested Alts.
+        exprs2 = []
+        for expr in exprs:
+            if isinstance(expr, cls):
+                exprs2.extend(expr.exprs)
+            else:
+                exprs2.append(expr)
+        exprs = exprs2
+
+        # Simplify if only one expr.
+        if len(exprs) == 1:
+            return exprs[0]
+
+        return cls(exprs)
+
+
+# Terminals
 
 
 @frozen
@@ -108,60 +149,20 @@ class Empty(Expr):
     pass
 
 
-# Composite expressions
+# Composite expressions.
 
 
 @frozen
-class _ManyExprs(Expr):
-    exprs: tuple[Expr, ...] = field(
-        converter=tuple, validator=[min_len(2), deep_iterable(instance_of(Expr))]
-    )
-
-    @property
-    def children(self):
-        return self.exprs
-
-    @classmethod
-    def create(cls, *exprs: Expr) -> Expr:
-        exprs = (to_string(expr) for expr in exprs)
-        # Expand nested elements.
-        exprs2 = []
-        for expr in exprs:
-            if isinstance(expr, cls):
-                exprs2.extend(expr.exprs)
-            else:
-                exprs2.append(expr)
-        exprs = exprs2
-
-        # Simplify if only one expr.
-        if len(exprs) == 1:
-            return exprs[0]
-
-        return cls(exprs)
-
-
-@frozen
-class Alt(_ManyExprs):
+class Alt(_ManyExpr):
     pass
 
 
 @frozen
-class Cat(_ManyExprs):
+class Cat(_ManyExpr):
     pass
 
 
-@frozen
-class _SingleExpr(Expr):
-    expr: Expr = field(validator=instance_of(Expr))
-
-    @property
-    def children(self):
-        return (self.expr,)
-
-    @classmethod
-    def create(cls, *exprs: Expr):
-        expr = Cat.create(*exprs)
-        return cls(expr)
+# Repeated composite
 
 
 @frozen
@@ -180,7 +181,8 @@ class OneOrMore(_SingleExpr):
 
 
 @frozen
-class Repeat(_SingleExpr):
+class Repeat(Expr):
+    expr: Expr = field(validator=instance_of(Expr))
     min: int = field(validator=[instance_of(int), ge(0)], default=0)
     max: int | None = field(
         validator=optional(and_(instance_of(int), ge(0))), default=None
@@ -189,6 +191,10 @@ class Repeat(_SingleExpr):
     def __attrs_post_init__(self):
         if self.max is not None and self.min > self.max:
             raise ValueError(f"{self.min} > {self.max}")
+
+    @property
+    def children(self):
+        return (self.expr,)
 
     @property
     def attributes(self):
@@ -206,7 +212,7 @@ class Repeat(_SingleExpr):
         return cls(expr, min, max)
 
 
-# Charset expression.
+# Charset
 
 
 @frozen
@@ -251,6 +257,9 @@ class Charset(Expr):
         return cls(groups)
 
 
+# Diff
+
+
 @frozen
 class Diff(Expr):
     base: Expr = field(validator=instance_of(Expr))
@@ -284,7 +293,7 @@ class CharsetDiff(Diff):
         return base
 
 
-# Grammar components
+# Grammar and rules
 
 
 @frozen
@@ -374,11 +383,11 @@ def is_ignored(expr):
 
 
 def is_case_sensitive(expr):
-    if expr.has_meta("i"):
-        return False
-    if expr.has_meta("s"):
+    if expr.has_meta("s", "case_sensitive"):
         return True
-    return expr.get_meta("case_sensitive", True)
+    if expr.has_meta("i", "case_insensitive"):
+        return False
+    return True
 
 
 # Visitor

@@ -1,3 +1,5 @@
+from functools import wraps
+
 from polygrammar.model import *
 from polygrammar.model import is_case_sensitive, is_ignored, is_token, transform
 
@@ -69,6 +71,19 @@ def subtract_groups(base, diff):
     return results
 
 
+def preserve_metadata(f):
+    @wraps(f)
+    def wrapper(expr):
+        result = f(expr)
+        if result is expr:
+            return result
+        for k, v in expr.metadata.items():
+            result = result.with_meta(k, v)
+        return result
+
+    return wrapper
+
+
 def inline_rules(rule_map, has_visitor_method):
     seen = set()
     new_rules = {}
@@ -101,10 +116,12 @@ def inline_rules(rule_map, has_visitor_method):
             # to the visitor method.
             # Likewise, ignored rules can't have visitors, so no visitor method
             # would be called.
-            new_rules[name] = transform(base_expr, inline)
+            expr = transform(base_expr, inline)
 
             # Copy metadata
-            new_rules[name].__meta__.extend(base_expr.__meta__)
+            for k, v in base_expr.metadata.items():
+                expr = expr.with_meta(k, v)
+            new_rules[name] = expr
         else:
             new_rules[name] = base_expr
         return new_rules[name]
@@ -132,6 +149,7 @@ def string_to_charset(rule_map):
 
 
 def coalesce_charsets(rule_map):
+    @preserve_metadata
     def f(expr):
         match expr:
             case Alt(exprs):

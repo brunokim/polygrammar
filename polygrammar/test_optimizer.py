@@ -70,6 +70,11 @@ def test_string_to_charset():
     "grammar, want",
     [
         ("s = [abc] | [def];", "s = [abcdef];"),
+        ("s = [abc] - [def];", "s = [abc];"),
+        ("s = [a-f] - [def];", "s = [a-c];"),
+        ("s = [a-z] - [def];", "s = [a-cg-z];"),
+        ("s = [d-f] - [a-z];", "s = '';"),
+        ("s = [b-gj-rt-wy-z] - [a-cf-hl-x];", "s = [d-ej-ky-z];"),
         ("s = [abc] | [def] | 'str' ;", "s = [abcdef] | 'str' ;"),
         ("s = [abc] | 'str' | [def] ;", "s = [abc] | 'str' | [def] ;"),
         ("s = [a-z] - [m];", "s = [a-ln-z];"),
