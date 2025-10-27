@@ -15,7 +15,7 @@ def to_range(group):
 
 
 def add_groups(g1, g2):
-    # TODO: remove overlaps
+    # TODO: coalesce redundant groups.
     return g1 + g2
 
 
@@ -154,14 +154,13 @@ def coalesce_charsets(rule_map):
         match expr:
             case Alt(exprs):
                 new_exprs = [exprs[0]]
-                for expr in exprs[1:]:
-                    expr = f(expr)
-                    latest = new_exprs[-1]
-                    match latest, expr:
+                for e in exprs[1:]:
+                    curr = new_exprs[-1]
+                    match curr, e:
                         case Charset(g1), Charset(g2):
                             new_exprs[-1] = Charset.create(*add_groups(g1, g2))
                         case _:
-                            new_exprs.append(expr)
+                            new_exprs.append(e)
                 return Alt.create(*new_exprs)
             case Diff(base, diff):
                 match base, diff:

@@ -75,13 +75,21 @@ def test_string_to_charset():
         ("s = [a-z] - [def];", "s = [a-cg-z];"),
         ("s = [d-f] - [a-z];", "s = '';"),
         ("s = [b-gj-rt-wy-z] - [a-cf-hl-x];", "s = [d-ej-ky-z];"),
+        ("s = [abc] | [def] | 'str' ;", "s = [abcdef] | 'str' ;"),
+        ("s = [abc] | 'str' | [def] ;", "s = [abc] | 'str' | [def] ;"),
+        ("s = [a-z] - [m];", "s = [a-ln-z];"),
+        ("s = [a-f] - [u-z];", "s = [a-f];"),
+        ("s = [u-z] - [a-f];", "s = [u-z];"),
+        ("s = [a-f] - [d-z];", "s = [a-c];"),
+        ("s = [f-z] - [a-m];", "s = [n-z];"),
+        ("s = [a-z] - [f-m];", "s = [a-en-z];"),
+        ("s = [f-m] - [a-z];", "s = '';"),
     ],
 )
 def test_coalesce_charsets(grammar, want):
     rule_map = build_rule_map(parse_ebnf(grammar))
     want = build_rule_map(parse_ebnf(want))
-    got = coalesce_charsets(rule_map)
-    assert got == want
+    assert coalesce_charsets(rule_map) == want
 
 
 @pytest.mark.parametrize(
