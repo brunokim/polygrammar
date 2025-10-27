@@ -348,6 +348,11 @@ def test_visitor(text, want, number_parser):
             ["A", "A", "A", "A", "B", "A"],
         ),
         (ZeroOrMore(Alt.create("AA", "A", "B")), "AAABA", ["AA", "A", "B", "A"]),
+        (
+            OneOrMore(Regexp("(--|[ab]+)")),
+            "aa--ab--bbb----aababaaa",
+            ["aa", "--", "ab", "--", "bbb", "--", "--", "aababaaa"],
+        ),
     ],
 )
 def test_parse_without_grammar(expr, text, want):

@@ -1,3 +1,4 @@
+import re
 from collections.abc import Mapping
 
 from attrs import evolve, field, frozen
@@ -24,6 +25,7 @@ __all__ = [
     "OneOrMore",
     "Symbol",
     "String",
+    "Regexp",
     "Char",
     "EndOfFile",
     "Empty",
@@ -147,6 +149,18 @@ class EndOfFile(Expr):
 
 class Empty(Expr):
     pass
+
+
+@frozen
+class Regexp(Expr):
+    pattern: str = field(validator=[instance_of(str), min_len(1)])
+
+    @pattern.validator
+    def _check_pattern(self, attribute, value):
+        try:
+            re.compile(value)
+        except re.error as e:
+            raise ValueError(f"Invalid regexp pattern: {value}") from e
 
 
 # Composite expressions.
@@ -369,6 +383,14 @@ def transform(node, f):
 def symbols(e: Expr):
     def f(e):
         if isinstance(e, Symbol):
+            yield e.name
+
+    return set(walk(e, f))
+
+
+def diffs(e: Expr):
+    def f(e):
+        if isinstance(e, Diff):
             yield e.name
 
     return set(walk(e, f))

@@ -1,4 +1,5 @@
 import inspect
+import re
 from textwrap import dedent
 from typing import Any
 
@@ -190,6 +191,8 @@ class ParseJob:
                 yield from self._parse_diff(state, base, diff, **kwargs)
             case EndOfFile():
                 yield from self._parse_end_of_file(state, **kwargs)
+            case Regexp(pattern):
+                yield from self._parse_regexp(state, pattern, *kwargs)
             case _:
                 raise NotImplementedError(f"Unknown expr type: {type(expr).__name__}")
 
@@ -288,3 +291,16 @@ class ParseJob:
             yield evolve(state, offset=state.offset + 1)
         elif state.offset == self._debug_offset:
             self._debug("EOF: not at end of file")
+
+    def _parse_regexp(self, state, pattern, ignore=False, **kwargs):
+        m = re.match(pattern, self.text[state.offset :])
+        if not m:
+            if state.offset == self._debug_offset:
+                self._debug(f"regexp: pattern {pattern!r} did not match")
+            return
+
+        end = state.offset + m.end()
+        results = state.results
+        if not ignore:
+            results = results + [m.group(0)]
+        yield evolve(state, offset=end, results=results)

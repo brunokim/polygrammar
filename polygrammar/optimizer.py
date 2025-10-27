@@ -1,7 +1,15 @@
 from functools import wraps
 
+from polygrammar.grammars.python_re import to_python_re
 from polygrammar.model import *
-from polygrammar.model import is_case_sensitive, is_ignored, is_token, transform
+from polygrammar.model import (
+    diffs,
+    is_case_sensitive,
+    is_ignored,
+    is_token,
+    symbols,
+    transform,
+)
 
 
 def to_range(group):
@@ -180,8 +188,23 @@ def coalesce_charsets(rule_map):
     return {name: transform(expr, f) for name, expr in rule_map.items()}
 
 
+def convert_to_regexp(rule_map):
+    @preserve_metadata
+    def f(expr):
+        if symbols(expr) or diffs(expr):
+            # Not a regular expression.
+            return expr
+        if not is_token(expr) or not is_ignored(expr):
+            # Regexp may change number of output tokens.
+            return expr
+        return Regexp(to_python_re(expr))
+
+    return {name: f(expr) for name, expr in rule_map.items()}
+
+
 def optimize(rule_map, has_visitor_method):
     rule_map = inline_rules(rule_map, has_visitor_method)
     rule_map = string_to_charset(rule_map)
     rule_map = coalesce_charsets(rule_map)
+    rule_map = convert_to_regexp(rule_map)
     return rule_map
