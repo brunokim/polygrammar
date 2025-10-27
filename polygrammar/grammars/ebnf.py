@@ -317,6 +317,8 @@ class EbnfVisitor(Visitor):
     def visit_STRING(self, token):
         quote = token[0]
         value = token[1:-1]
+        if not value:
+            return Empty()
         if quote == '"':
             escape = DQUOTE_STRING_ESCAPE
         else:

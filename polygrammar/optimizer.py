@@ -1,3 +1,5 @@
+from functools import wraps
+
 from polygrammar.model import *
 from polygrammar.model import is_case_sensitive, is_ignored, is_token, transform
 
@@ -10,6 +12,11 @@ def to_range(group):
             return (ord(start.char), ord(end.char) + 1)
         case _:
             raise ValueError(f"Invalid group: {group}")
+
+
+def add_groups(g1, g2):
+    # TODO: remove overlaps
+    return g1 + g2
 
 
 def subtract_groups(base, diff):
@@ -62,6 +69,18 @@ def subtract_groups(base, diff):
         else:
             results.append(CharRange(Char(chr(a)), Char(chr(z - 1))))
     return results
+
+
+def preserve_metadata(f):
+    @wraps(f)
+    def wrapper(expr):
+        result = f(expr)
+        if result is expr:
+            return result
+        result.__meta__.extend(expr.__meta__)
+        return result
+
+    return wrapper
 
 
 def inline_rules(rule_map, has_visitor_method):
@@ -129,10 +148,23 @@ def string_to_charset(rule_map):
 def coalesce_charsets(rule_map):
     def f(expr):
         match expr:
-            case Alt(_):
-                pass
-            case Diff(_, _):
-                pass
+            case Alt(exprs):
+                new_exprs = [exprs[0]]
+                for expr in exprs[1:]:
+                    expr = f(expr)
+                    latest = new_exprs[-1]
+                    match latest, expr:
+                        case Charset(g1), Charset(g2):
+                            new_exprs[-1] = Charset.create(*add_groups(g1, g2))
+                        case _:
+                            new_exprs.append(expr)
+                return Alt.create(*new_exprs)
+            case Diff(base, diff):
+                match base, diff:
+                    case Charset(g1), Charset(g2):
+                        return Charset.create(*subtract_groups(g1, g2))
+                    case _:
+                        return Diff(base, diff)
             case _:
                 return expr
 
@@ -142,6 +174,7 @@ def coalesce_charsets(rule_map):
 def optimize2(rule_map, has_visitor_method):
     rule_map = inline_rules(rule_map, has_visitor_method)
     rule_map = string_to_charset(rule_map)
+    rule_map = coalesce_charsets(rule_map)
     return rule_map
 
 

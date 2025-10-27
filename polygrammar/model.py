@@ -24,6 +24,7 @@ __all__ = [
     "String",
     "Char",
     "EndOfFile",
+    "Empty",
     "CharRange",
     "Charset",
     "Diff",
@@ -223,6 +224,10 @@ class EndOfFile(Expr):
     pass
 
 
+class Empty(Expr):
+    pass
+
+
 @frozen
 class Char(Node):
     char: str = field(validator=[instance_of(str), min_len(1), max_len(1)])
@@ -259,6 +264,8 @@ class Charset(Expr):
 
     @classmethod
     def create(cls, *groups: str | Char | CharRange) -> "Charset":
+        if not groups:
+            return Empty()
         groups = (to_char(g) for g in groups)
         return cls(groups)
 
@@ -360,7 +367,7 @@ def transform(node, f):
         return f(node)
     cls = type(node)
     children = (transform(c, f) for c in node.children)
-    return cls.create(*children, **node.attributes)
+    return f(cls.create(*children, **node.attributes))
 
 
 def symbols(e: Expr):
