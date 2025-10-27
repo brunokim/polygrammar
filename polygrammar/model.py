@@ -83,7 +83,7 @@ class Expr(Node):
 
 
 @frozen
-class Alt(Expr):
+class _ManyExpr(Expr):
     exprs: tuple[Expr, ...] = field(
         converter=tuple, validator=[min_len(2), deep_iterable(instance_of(Expr))]
     )
@@ -98,7 +98,7 @@ class Alt(Expr):
         # Expand nested Alts.
         exprs2 = []
         for expr in exprs:
-            if isinstance(expr, Alt):
+            if isinstance(expr, cls):
                 exprs2.extend(expr.exprs)
             else:
                 exprs2.append(expr)
@@ -112,32 +112,16 @@ class Alt(Expr):
 
 
 @frozen
-class Cat(Expr):
-    exprs: tuple[Expr, ...] = field(
-        converter=tuple, validator=[min_len(2), deep_iterable(instance_of(Expr))]
-    )
+class Alt(_ManyExpr):
+    pass
 
-    @property
-    def children(self):
-        return self.exprs
 
-    @classmethod
-    def create(cls, *exprs: Expr) -> Expr:
-        exprs = (to_string(expr) for expr in exprs)
-        # Expand nested Cats.
-        exprs2 = []
-        for expr in exprs:
-            if isinstance(expr, Cat):
-                exprs2.extend(expr.exprs)
-            else:
-                exprs2.append(expr)
-        exprs = exprs2
+@frozen
+class Cat(_ManyExpr):
+    pass
 
-        # Simplify if only one expr.
-        if len(exprs) == 1:
-            return exprs[0]
 
-        return cls(exprs)
+# Repeated composite
 
 
 @frozen
@@ -173,7 +157,7 @@ class Repeat(Expr):
 
 
 @frozen
-class Optional(Expr):
+class _SingleExpr(Expr):
     expr: Expr = field(validator=instance_of(Expr))
 
     @property
@@ -187,31 +171,21 @@ class Optional(Expr):
 
 
 @frozen
-class ZeroOrMore(Expr):
-    expr: Expr = field(validator=instance_of(Expr))
-
-    @property
-    def children(self):
-        return (self.expr,)
-
-    @classmethod
-    def create(cls, *exprs: Expr):
-        expr = Cat.create(*exprs)
-        return cls(expr)
+class Optional(_SingleExpr):
+    pass
 
 
 @frozen
-class OneOrMore(Expr):
-    expr: Expr = field(validator=instance_of(Expr))
+class ZeroOrMore(_SingleExpr):
+    pass
 
-    @property
-    def children(self):
-        return (self.expr,)
 
-    @classmethod
-    def create(cls, *exprs: Expr):
-        expr = Cat.create(*exprs)
-        return cls(expr)
+@frozen
+class OneOrMore(_SingleExpr):
+    pass
+
+
+# Terminals
 
 
 @frozen
@@ -230,6 +204,9 @@ class EndOfFile(Expr):
 
 class Empty(Expr):
     pass
+
+
+# Charset
 
 
 @frozen
@@ -274,6 +251,9 @@ class Charset(Expr):
         return cls(groups)
 
 
+# Diff
+
+
 @frozen
 class Diff(Expr):
     base: Expr = field(validator=instance_of(Expr))
@@ -305,6 +285,9 @@ class CharsetDiff(Diff):
         for expr in exprs:
             base = cls(base, to_charset(to_char(expr)))
         return base
+
+
+# Grammar and rules
 
 
 @frozen
