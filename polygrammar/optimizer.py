@@ -202,9 +202,37 @@ def convert_to_regexp(rule_map):
     return {name: f(expr) for name, expr in rule_map.items()}
 
 
+def remove_empty(rule_map):
+    @preserve_metadata
+    def f(expr):
+        match expr:
+            case (
+                Optional(Empty())
+                | ZeroOrMore(Empty())
+                | OneOrMore(Empty())
+                | Repeat(Empty())
+            ):
+                return Empty()
+            case Alt(exprs):
+                if not any(isinstance(e, Empty) for e in exprs):
+                    return expr
+                new_exprs = [e for e in exprs if not isinstance(e, Empty)]
+                return Optional(Alt.create(*new_exprs))
+            case Cat(exprs):
+                if not any(isinstance(e, Empty) for e in exprs):
+                    return expr
+                new_exprs = [e for e in exprs if not isinstance(e, Empty)]
+                return Cat.create(*new_exprs)
+            case _:
+                return expr
+
+    return {name: transform(expr, f) for name, expr in rule_map.items()}
+
+
 def optimize(rule_map, has_visitor_method):
     rule_map = inline_rules(rule_map, has_visitor_method)
     rule_map = string_to_charset(rule_map)
     rule_map = coalesce_charsets(rule_map)
+    rule_map = remove_empty(rule_map)
     rule_map = convert_to_regexp(rule_map)
     return rule_map
