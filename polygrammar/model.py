@@ -360,7 +360,10 @@ def transform(node, f):
         return f(node)
     cls = type(node)
     children = (transform(c, f) for c in node.children)
-    return f(cls.create(*children, **node.attributes))
+    x = cls.create(*children, **node.attributes)
+    if isinstance(node, Expr):
+        x = evolve(x, metadata=node.metadata)
+    return f(x)
 
 
 def symbols(e: Expr):

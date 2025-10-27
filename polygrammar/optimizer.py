@@ -73,12 +73,11 @@ def subtract_groups(base, diff):
 
 def preserve_metadata(f):
     @wraps(f)
-    def wrapper(expr):
-        result = f(expr)
-        if result is expr:
-            return result
-        for k, v in expr.metadata.items():
-            result = result.with_meta(k, v)
+    def wrapper(node):
+        result = f(node)
+        if isinstance(node, Expr):
+            for k, v in node.metadata.items():
+                result = result.with_meta(k, v)
         return result
 
     return wrapper
@@ -133,6 +132,7 @@ def inline_rules(rule_map, has_visitor_method):
 
 
 def string_to_charset(rule_map):
+    @preserve_metadata
     def f(expr):
         if not isinstance(expr, String):
             return expr
@@ -158,7 +158,13 @@ def coalesce_charsets(rule_map):
                     curr = new_exprs[-1]
                     match curr, e:
                         case Charset(g1), Charset(g2):
-                            new_exprs[-1] = Charset.create(*add_groups(g1, g2))
+                            different_token_status = is_token(curr) != is_token(e)
+                            different_ignored_status = is_ignored(curr) != is_ignored(e)
+                            if different_token_status or different_ignored_status:
+                                # Don't merge charsets with different token/ignored status.
+                                new_exprs.append(e)
+                            else:
+                                new_exprs[-1] = Charset.create(*add_groups(g1, g2))
                         case _:
                             new_exprs.append(e)
                 return Alt.create(*new_exprs)

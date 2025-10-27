@@ -228,18 +228,18 @@ def test_parse_error(text, msg):
 
 
 def test_no_match():
-    parser = Parser.from_grammar(Grammar.create(s=OneOrMore(Alt.create("A", "\n"))))
+    parser = Parser.from_grammar(Grammar.create(s=OneOrMore(Alt.create("AA", "\n\n"))))
 
     msg1 = dedent(
         """\
-        At 1:1 (0): string: 'B' != 'A' (case_sensitive=True) (symbol@0 > repeat@0 > alt@0 > string@0)
+        At 1:1 (0): string: 'BB' != 'AA' (case_sensitive=True) (symbol@0 > repeat@0 > alt@0 > string@0)
             BBBB
             ^
         """
     )
     msg2 = dedent(
         """\
-        At 1:1 (0): string: 'B' != '\\n' (case_sensitive=True) (symbol@0 > repeat@0 > alt@0 > string@0)
+        At 1:1 (0): string: 'BB' != '\\n\\n' (case_sensitive=True) (symbol@0 > repeat@0 > alt@0 > string@0)
             BBBB
             ^
         """

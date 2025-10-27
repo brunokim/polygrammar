@@ -6,7 +6,7 @@ from attrs import field, frozen
 from attrs.validators import deep_mapping, instance_of, is_callable
 
 from polygrammar.model import Alt, Cat, Expr, Grammar, Visitor, symbols
-from polygrammar.optimizer import inline_rules
+from polygrammar.optimizer import optimize
 
 BASE_OPTIONS = {"ignore", "warn", "error"}
 
@@ -117,6 +117,6 @@ class Runtime:
             rule_map.keys(), visitor, on_unused_visitor_methods
         )
 
-        rule_map = inline_rules(rule_map, method_map.keys())
+        rule_map = optimize(rule_map, method_map.keys())
 
         return cls(rule_map=rule_map, method_map=method_map)
