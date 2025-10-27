@@ -53,6 +53,9 @@ def to_symbol(x):
     return Symbol(x) if isinstance(x, str) else x
 
 
+# Abstract classes
+
+
 @frozen
 class Node:
     @property
@@ -80,6 +83,20 @@ class Expr(Node):
 
     def has_meta(self, *names: str) -> bool:
         return any(name in self.metadata for name in names)
+
+
+@frozen
+class _SingleExpr(Expr):
+    expr: Expr = field(validator=instance_of(Expr))
+
+    @property
+    def children(self):
+        return (self.expr,)
+
+    @classmethod
+    def create(cls, *exprs: Expr):
+        expr = Cat.create(*exprs)
+        return cls(expr)
 
 
 @frozen
@@ -111,6 +128,30 @@ class _ManyExpr(Expr):
         return cls(exprs)
 
 
+# Terminals
+
+
+@frozen
+class Symbol(Expr):
+    name: str = field(validator=[instance_of(str), min_len(1)])
+
+
+@frozen
+class String(Expr):
+    value: str = field(validator=[instance_of(str), min_len(1)])
+
+
+class EndOfFile(Expr):
+    pass
+
+
+class Empty(Expr):
+    pass
+
+
+# Composite expressions.
+
+
 @frozen
 class Alt(_ManyExpr):
     pass
@@ -122,6 +163,21 @@ class Cat(_ManyExpr):
 
 
 # Repeated composite
+
+
+@frozen
+class Optional(_SingleExpr):
+    pass
+
+
+@frozen
+class ZeroOrMore(_SingleExpr):
+    pass
+
+
+@frozen
+class OneOrMore(_SingleExpr):
+    pass
 
 
 @frozen
@@ -154,56 +210,6 @@ class Repeat(Expr):
         if min == 1 and max is None:
             return OneOrMore(expr)
         return cls(expr, min, max)
-
-
-@frozen
-class _SingleExpr(Expr):
-    expr: Expr = field(validator=instance_of(Expr))
-
-    @property
-    def children(self):
-        return (self.expr,)
-
-    @classmethod
-    def create(cls, *exprs: Expr):
-        expr = Cat.create(*exprs)
-        return cls(expr)
-
-
-@frozen
-class Optional(_SingleExpr):
-    pass
-
-
-@frozen
-class ZeroOrMore(_SingleExpr):
-    pass
-
-
-@frozen
-class OneOrMore(_SingleExpr):
-    pass
-
-
-# Terminals
-
-
-@frozen
-class Symbol(Expr):
-    name: str = field(validator=[instance_of(str), min_len(1)])
-
-
-@frozen
-class String(Expr):
-    value: str = field(validator=[instance_of(str), min_len(1)])
-
-
-class EndOfFile(Expr):
-    pass
-
-
-class Empty(Expr):
-    pass
 
 
 # Charset
