@@ -1,6 +1,8 @@
 from textwrap import dedent
 
 import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 
 from polygrammar.grammars.lisp import (
     LISP_GRAMMAR,
@@ -136,3 +138,31 @@ def test_self_parse():
     text = lisp_str(data)
     g = parse_lisp_grammar(text)
     assert g == LISP_GRAMMAR
+
+
+@given(
+    st.recursive(
+        st.text(
+            st.characters(
+                codec="ascii",
+                min_codepoint=0x20,
+                max_codepoint=0x7E,
+                include_characters=["\t"],
+            )
+        )
+        | st.builds(
+            Symbol,
+            name=st.text(
+                st.characters(
+                    codec="ascii", min_codepoint=ord("a"), max_codepoint=ord("z")
+                ),
+                min_size=1,
+            ),
+        ),
+        # TODO: generate tuples with variable size.
+        st.tuples,
+    )
+)
+def test_roundtrip(data):
+    print(data)
+    assert (data,) == parse_lisp_data(lisp_str(data))

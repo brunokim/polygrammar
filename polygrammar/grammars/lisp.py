@@ -32,11 +32,14 @@ ESCAPE = CombinedEscapes(
 
 # to_lisp
 
+leaf_types = {Symbol, String, EndOfFile, Empty, Regexp, Char}
+
 type_names = {
     Symbol: ["symbol"],
     String: ["string"],
     Char: ["char"],
     EndOfFile: ["end_of_file"],
+    Empty: ["empty"],
     Regexp: ["regexp"],
     Alt: ["alt", "|"],
     Cat: ["cat"],
@@ -54,6 +57,9 @@ type_names = {
 
 
 lisp_name = {name: cls for cls, names in type_names.items() for name in names}
+leaf_names = {
+    name for cls, names in type_names.items() for name in names if cls in leaf_types
+}
 
 
 @multimethod
@@ -244,7 +250,7 @@ class LispGrammarVisitor(LispVisitor):
         match values:
             case [Symbol(name) | name, *args] if name in lisp_name:
                 cls = lisp_name[name]
-                if name in {"symbol", "string", "char", "end_of_file"}:
+                if name in leaf_names:
                     return cls(*args)
                 return cls.create(*args)
             case _:
