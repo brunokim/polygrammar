@@ -38,36 +38,40 @@ def subtract_groups(base, diff):
         a2, z2 = diff_ranges[j]
 
         if z1 <= a2:
-            # [a1,  z1)
-            #           [a2,  z2)
+            # ████████      ░░░░░░░░
+            # a1      z1    a2      z2
             # No overlap, keep base range.
             i += 1
         elif z2 <= a1:
-            #           [a1,  z1)
-            # [a2,  z2)
+            # ░░░░░░░░      ████████
+            # a2      z2    a1      z1
             # No overlap, skip diff range.
             j += 1
         elif a1 < a2 and z1 <= z2:
-            # [a1,       z1)
-            #      [a2,       z2)
+            # ████████
+            #      ░░░░░░░░
+            # a1   a2 z1   z2
             # Overlap, keep left part of base range.
             base_ranges[i] = (a1, a2)
             i += 1
         elif a2 <= a1 and z2 < z1:
-            #      [a1,       z1)
-            # [a2,       z2)
+            #      ████████
+            # ░░░░░░░░
+            # a2   a1 z2   z1
             # Overlap, keep right part of base range.
             base_ranges[i] = (z2, z1)
             j += 1
         elif a1 < a2 and z2 < z1:
-            # [a1,            z1)
-            #      [a2,  z2)
+            # █████████████
+            #      ░░░
+            # a1   a2 z2   z1
             # Overlap, splitting base range in two.
             base_ranges[i : i + 1] = [(a1, a2), (z2, z1)]
             i += 1
         else:
-            #      [a1,  z1)
-            # [a2,            z2)
+            #      ███
+            # ░░░░░░░░░░░░░
+            # a2   a1 z1   z2
             # Overlap, remove base range.
             base_ranges[i : i + 1] = []
 
