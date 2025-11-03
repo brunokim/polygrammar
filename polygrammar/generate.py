@@ -2,21 +2,22 @@ from hypothesis import strategies as st
 from multimethod import multimethod
 
 from polygrammar.model import *
+from polygrammar.recursive_parser import ParseError, Parser
 
 
 @multimethod
-def generator(self: Charset, gen_map):
-    char_generators = [generator(group, gen_map) for group in self.groups]
+def generator(self: Charset, gen_map, parser):
+    char_generators = [generator(group, gen_map, parser) for group in self.groups]
     return st.one_of(char_generators)
 
 
 @multimethod
-def generator(self: Char, gen_map):
+def generator(self: Char, gen_map, parser):
     return st.just(self.char)
 
 
 @multimethod
-def generator(self: CharRange, gen_map):
+def generator(self: CharRange, gen_map, parser):
     return st.characters(
         min_codepoint=ord(self.start.char),
         max_codepoint=ord(self.end.char),
@@ -24,8 +25,8 @@ def generator(self: CharRange, gen_map):
 
 
 @multimethod
-def generator(self: Cat, gen_map):
-    sub_generators = [generator(expr, gen_map) for expr in self.exprs]
+def generator(self: Cat, gen_map, parser):
+    sub_generators = [generator(expr, gen_map, parser) for expr in self.exprs]
 
     @st.composite
     def f(draw):
@@ -35,14 +36,16 @@ def generator(self: Cat, gen_map):
 
 
 @multimethod
-def generator(self: Alt, gen_map):
-    generators = [generator(expr, gen_map) for expr in self.exprs]
+def generator(self: Alt, gen_map, parser):
+    generators = [generator(expr, gen_map, parser) for expr in self.exprs]
     return st.one_of(generators)
 
 
 @multimethod
-def generator(self: Repeat, gen_map):
-    g = st.lists(generator(self.expr, gen_map), min_size=self.min, max_size=self.max)
+def generator(self: Repeat, gen_map, parser):
+    g = st.lists(
+        generator(self.expr, gen_map, parser), min_size=self.min, max_size=self.max
+    )
 
     @st.composite
     def f(draw):
@@ -52,57 +55,77 @@ def generator(self: Repeat, gen_map):
 
 
 @multimethod
-def generator(self: Optional, gen_map):
-    return generator(Repeat(self.expr, min=0, max=1), gen_map)
+def generator(self: Optional, gen_map, parser):
+    return generator(Repeat(self.expr, min=0, max=1), gen_map, parser)
 
 
 @multimethod
-def generator(self: ZeroOrMore, gen_map):
-    return generator(Repeat(self.expr, min=0, max=None), gen_map)
+def generator(self: ZeroOrMore, gen_map, parser):
+    return generator(Repeat(self.expr, min=0, max=None), gen_map, parser)
 
 
 @multimethod
-def generator(self: OneOrMore, gen_map):
-    return generator(Repeat(self.expr, min=1, max=None), gen_map)
+def generator(self: OneOrMore, gen_map, parser):
+    return generator(Repeat(self.expr, min=1, max=None), gen_map, parser)
 
 
 @multimethod
-def generator(self: Symbol, gen_map):
+def generator(self: Symbol, gen_map, parser):
     return st.deferred(lambda: gen_map[self])
 
 
 @multimethod
-def generator(self: String, gen_map):
+def generator(self: String, gen_map, parser):
     return st.just(self.value)
 
 
 @multimethod
-def generator(self: Empty, gen_map):
+def generator(self: Empty, gen_map, parser):
     return st.just("")
 
 
 @multimethod
-def generator(self: Regexp, gen_map):
+def generator(self: Regexp, gen_map, parser):
     return st.from_regex(self.pattern)
 
 
 @multimethod
-def generator(self: Diff, gen_map):
-    # TODO: execute diff
-    return generator(self.base, gen_map)
+def generator(self: Diff, gen_map, parser):
+    gen_base = generator(self.base, gen_map, parser)
+
+    @st.composite
+    def f(draw):
+        while True:
+            value = draw(gen_base)
+            try:
+                parser.first_parse(value, self.diff, debug=False)
+                continue
+            except ParseError:
+                return value
+
+    return f()
 
 
 @multimethod
 def generator(self: Grammar, expr=None):
+    parser = Parser.from_grammar(self)
+
     if expr is None:
         expr = self.rules[0].name
     gen_map = {}
     for rule in self.rules:
-        gen_map[rule.name] = generator(rule.expr, gen_map)
-    return generator(expr, gen_map)
+        gen_map[rule.name] = generator(rule.expr, gen_map, parser)
+
+    return generator(expr, gen_map, parser)
 
 
 if __name__ == "__main__":
+    import warnings
+
+    from hypothesis.errors import NonInteractiveExampleWarning
+
+    warnings.simplefilter("ignore", NonInteractiveExampleWarning)
+
     grammar = Grammar.create(
         symbol=Cat.create(Symbol("first_char"), ZeroOrMore(Symbol("other_char"))),
         first_char=Alt.create(Symbol("lower"), Symbol("upper")),
@@ -120,6 +143,6 @@ if __name__ == "__main__":
     from polygrammar.grammars.ebnf import EBNF_GRAMMAR
 
     print("== EBNF ==")
-    g = generator(EBNF_GRAMMAR, Symbol("STRING"))
+    g = generator(EBNF_GRAMMAR, Symbol("expr"))
     for _ in range(10):
         print(g.example())
