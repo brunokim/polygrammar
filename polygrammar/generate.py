@@ -44,7 +44,9 @@ def generator(self: Alt, gen_map, parser):
 @multimethod
 def generator(self: Repeat, gen_map, parser):
     g = st.lists(
-        generator(self.expr, gen_map, parser), min_size=self.min, max_size=self.max
+        generator(self.expr, gen_map, parser),
+        min_size=self.min,
+        max_size=min(self.max or 3, 3),
     )
 
     @st.composite

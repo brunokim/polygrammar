@@ -1,3 +1,8 @@
+import re
+
+from hypothesis import Phase, assume, given, settings
+
+from polygrammar.generate import generator
 from polygrammar.grammars.ebnf import EBNF_GRAMMAR, parse_ebnf, to_ebnf
 
 EBNF_GRAMMAR_STR = r"""
@@ -59,3 +64,17 @@ def test_self_parse():
     ebnf = to_ebnf(EBNF_GRAMMAR)
     parsed = parse_ebnf(ebnf)
     assert parsed == EBNF_GRAMMAR
+
+
+@given(generator(EBNF_GRAMMAR))
+@settings(deadline=None, phases=[Phase.generate])
+def test_ebnf_generate(text):
+    try:
+        parse_ebnf(text)
+    except ValueError as e:
+        # Generated a char range with invalid endpoints.
+        m = re.match(
+            r"^Invalid range: Char\(char='([^']+)'\)-Char\(char='([^']+)'\)$", str(e)
+        )
+        # Mark example as bad.
+        assume(not m)
