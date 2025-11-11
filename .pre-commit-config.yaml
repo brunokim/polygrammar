@@ -27,7 +27,12 @@ repos:
     hooks:
       - id: pytest
         name: pytest
-        entry: 'pytest -vv'
+        entry: >
+          pytest
+          -vv
+          --hypothesis-show-statistics
+          --hypothesis-profile=pre-push
+          -m 'hypothesis or not hypothesis'
         language: system
         pass_filenames: false
         always_run: true

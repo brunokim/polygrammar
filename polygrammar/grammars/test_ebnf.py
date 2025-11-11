@@ -1,6 +1,6 @@
 import re
 
-from hypothesis import Phase, assume, given, settings
+from hypothesis import assume, given
 
 from polygrammar.generate import generator
 from polygrammar.grammars.ebnf import EBNF_GRAMMAR, parse_ebnf, to_ebnf
@@ -67,7 +67,6 @@ def test_self_parse():
 
 
 @given(generator(EBNF_GRAMMAR))
-@settings(deadline=None, phases=[Phase.generate])
 def test_ebnf_generate(text):
     try:
         parse_ebnf(text)
