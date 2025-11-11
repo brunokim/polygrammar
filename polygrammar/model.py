@@ -114,7 +114,7 @@ class _ManyExpr(Expr):
     @classmethod
     def create(cls, *exprs: Expr) -> Expr:
         exprs = (to_string(expr) for expr in exprs)
-        # Expand nested Alts.
+        # Expand nested classes.
         exprs2 = []
         for expr in exprs:
             if isinstance(expr, cls):
@@ -123,7 +123,9 @@ class _ManyExpr(Expr):
                 exprs2.append(expr)
         exprs = exprs2
 
-        # Simplify if only one expr.
+        if not exprs:
+            return Empty()
+
         if len(exprs) == 1:
             return exprs[0]
 

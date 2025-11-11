@@ -15,8 +15,8 @@ Current status: convert between internal grammar languages and ABNF.
 - `grammars.escapes`: char-to-string serialization and parsing.
 - `model`: base model and pure functions for grammar intermediate representation (IR).
 - `grammars.python_re_writer`: write grammar model as Python's `re` regex syntax.
-- `optimizer`: optimize grammar-to-grammar
-- `runtime`: combine grammar and visitor class into an efficient runtime representation.
+- `optimizer`: optimize rulemap-to-rulemap
+- `runtime`: combine grammar and visitor class into an efficient runtime representation of rulemap+methodmap.
 - `recursive_parser`: grammar parser implementation using top-down recursive descent.
 - `generate`: generate text from grammar model.
 - `grammars.lisp`: parse and serialize grammar IR in a Lisp language.

@@ -35,10 +35,6 @@ def build_rule_map(grammar, on_duplicate_rule="error"):
     for rule in grammar.rules:
         name = rule.name.name
         expr = rule.expr
-        if name[0] == "_":
-            expr = expr.with_meta("ignore")
-        if name[0].isupper():
-            expr = expr.with_meta("token")
         if name not in rule_map or on_duplicate_rule == "overrides":
             rule_map[name] = expr
             continue
@@ -108,15 +104,39 @@ class Runtime:
         visitor: Visitor = None,
         on_duplicate_rule: str = "error",
         on_unused_visitor_methods: str = "error",
+        rule_transforms=None,
+        rule_map_transforms=None,
     ):
         if visitor is None:
             visitor = Visitor()
+        if rule_transforms is None:
+            rule_transforms = [
+                ignored_rule_starts_with_underscore,
+                token_rule_starts_with_uppercase,
+            ]
+        if rule_map_transforms is None:
+            rule_map_transforms = [optimize]
 
         rule_map = build_rule_map(grammar, on_duplicate_rule)
         method_map = build_method_map(
             rule_map.keys(), visitor, on_unused_visitor_methods
         )
 
-        rule_map = optimize(rule_map, method_map.keys())
+        for f in rule_transforms:
+            rule_map = {name: f(name, expr) for name, expr in rule_map.items()}
+        for f in rule_map_transforms:
+            rule_map = f(rule_map, method_map.keys())
 
         return cls(rule_map=rule_map, method_map=method_map)
+
+
+def ignored_rule_starts_with_underscore(name, expr):
+    if name[0] == "_":
+        return expr.with_meta("ignore")
+    return expr
+
+
+def token_rule_starts_with_uppercase(name, expr):
+    if name[0].isupper():
+        return expr.with_meta("token")
+    return expr

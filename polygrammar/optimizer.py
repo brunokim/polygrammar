@@ -216,6 +216,7 @@ def remove_empty(rule_map):
                 | ZeroOrMore(Empty())
                 | OneOrMore(Empty())
                 | Repeat(Empty())
+                | Diff(Empty(), _)
             ):
                 return Empty()
             case Alt(exprs):
@@ -228,6 +229,8 @@ def remove_empty(rule_map):
                     return expr
                 new_exprs = [e for e in exprs if not isinstance(e, Empty)]
                 return Cat.create(*new_exprs)
+            case Diff(base, Empty()):
+                return base
             case _:
                 return expr
 
