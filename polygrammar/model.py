@@ -387,9 +387,7 @@ def transform(node, f):
         return f(node)
     cls = type(node)
     children = (transform(c, f) for c in node.children)
-    x = cls.create(*children, **node.attributes)
-    if isinstance(node, Expr):
-        x = evolve(x, metadata=node.metadata)
+    x = cls.create(*children, metadata=node.metadata, **node.attributes)
     return f(x)
 
 
