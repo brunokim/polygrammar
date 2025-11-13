@@ -12,7 +12,7 @@ from polygrammar.model import *
         (Alt.create(String("ab"), String("cd")), r"ab|cd", ["ab", "cd"]),
         (Cat.create(String("ab"), String("cd")), r"abcd", ["abcd"]),
         (
-            Cat.create(String("ab").with_meta("i"), String("cd")),
+            Cat.create(String("ab").set_meta("i"), String("cd")),
             r"(?i:ab)cd",
             ["abcd", "ABcd", "aBcd"],
         ),

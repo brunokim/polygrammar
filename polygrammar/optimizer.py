@@ -89,8 +89,7 @@ def preserve_metadata(f):
     def wrapper(node):
         result = f(node)
         if isinstance(node, Expr):
-            for k, v in node.metadata.items():
-                result = result.with_meta(k, v)
+            result = result.update_meta(node.metadata)
         return result
 
     return wrapper
@@ -127,8 +126,7 @@ def inline_rules(rule_map, method_map):
             expr = transform(base_expr, inline)
 
             # Copy metadata
-            for k, v in base_expr.metadata.items():
-                expr = expr.with_meta(k, v)
+            expr = expr.update_meta(base_expr.metadata)
             new_rules[name] = expr
         else:
             new_rules[name] = base_expr

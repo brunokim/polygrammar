@@ -66,6 +66,7 @@ class Node:
         hash=False,
         repr=False,
         factory=frozendict,
+        converter=frozendict,
         validator=deep_mapping(instance_of(str), optional(instance_of(str))),
     )
 
@@ -77,8 +78,11 @@ class Node:
     def attributes(self):
         return {}
 
-    def with_meta(self, name, value=None):
+    def set_meta(self, name, value=None):
         return evolve(self, metadata=self.metadata.set(name, value))
+
+    def update_meta(self, other):
+        return evolve(self, metadata=self.metadata | other)
 
     def has_meta(self, *names: str) -> bool:
         return any(name in self.metadata for name in names)
@@ -98,9 +102,9 @@ class _SingleExpr(Expr):
         return (self.expr,)
 
     @classmethod
-    def create(cls, *exprs: Expr):
+    def create(cls, *exprs: Expr, metadata=frozendict()):
         expr = Cat.create(*exprs)
-        return cls(expr)
+        return cls(expr, metadata=metadata)
 
 
 @frozen
@@ -114,7 +118,7 @@ class _ManyExpr(Expr):
         return self.exprs
 
     @classmethod
-    def create(cls, *exprs: Expr) -> Expr:
+    def create(cls, *exprs: Expr, metadata=frozendict()) -> Expr:
         exprs = (to_string(expr) for expr in exprs)
         # Expand nested classes.
         exprs2 = []
@@ -129,9 +133,9 @@ class _ManyExpr(Expr):
             return Empty()
 
         if len(exprs) == 1:
-            return exprs[0]
+            return exprs[0].update_meta(metadata)
 
-        return cls(exprs)
+        return cls(exprs, metadata=metadata)
 
 
 # Terminals
@@ -219,15 +223,15 @@ class Repeat(Expr):
         return {"min": self.min, "max": self.max}
 
     @classmethod
-    def create(cls, *exprs: Expr, min=0, max=None):
+    def create(cls, *exprs: Expr, min=0, max=None, metadata=frozendict()):
         expr = Cat.create(*exprs)
         if min == 0 and max is None:
-            return ZeroOrMore(expr)
+            return ZeroOrMore(expr, metadata=metadata)
         if min == 0 and max == 1:
-            return Optional(expr)
+            return Optional(expr, metadata=metadata)
         if min == 1 and max is None:
-            return OneOrMore(expr)
-        return cls(expr, min, max)
+            return OneOrMore(expr, metadata=metadata)
+        return cls(expr, min, max, metadata=metadata)
 
 
 # Charset
@@ -252,8 +256,8 @@ class CharRange(Node):
         return (self.start, self.end)
 
     @classmethod
-    def create(cls, start: str | Char, end: str | Char) -> "CharRange":
-        return cls(to_char(start), to_char(end))
+    def create(cls, start: str | Char, end: str | Char, **kwargs) -> "CharRange":
+        return cls(to_char(start), to_char(end), **kwargs)
 
 
 @frozen
@@ -268,11 +272,11 @@ class Charset(Expr):
         return self.groups
 
     @classmethod
-    def create(cls, *groups: str | Char | CharRange) -> "Charset":
+    def create(cls, *groups: str | Char | CharRange, **kwargs) -> "Charset":
         if not groups:
-            return Empty()
+            return Empty(**kwargs)
         groups = (to_char(g) for g in groups)
-        return cls(groups)
+        return cls(groups, **kwargs)
 
 
 # Diff
@@ -288,10 +292,10 @@ class Diff(Expr):
         return (self.base, self.diff)
 
     @classmethod
-    def create(cls, base: Expr, *exprs: Expr) -> "Diff":
+    def create(cls, base: Expr, *exprs: Expr, metadata=frozendict()) -> "Diff":
         for expr in exprs:
             base = cls(base, to_string(expr))
-        return base
+        return base.update_meta(metadata)
 
 
 @frozen
@@ -305,10 +309,10 @@ class CharsetDiff(Diff):
             raise TypeError(f"diff must be Charset or Symbol, got {type(self.diff)}")
 
     @classmethod
-    def create(cls, base: Expr, *exprs: Expr) -> "CharsetDiff":
+    def create(cls, base: Expr, *exprs: Expr, metadata=frozendict()) -> "CharsetDiff":
         for expr in exprs:
             base = cls(base, to_charset(to_char(expr)))
-        return base
+        return base.update_meta(metadata)
 
 
 # Grammar and rules
@@ -340,9 +344,14 @@ class Rule(Node):
         *exprs: Expr,
         is_additional_cat=False,
         is_additional_alt=False,
+        metadata=frozendict(),
     ) -> "Rule":
         return cls(
-            to_symbol(name), Cat.create(*exprs), is_additional_cat, is_additional_alt
+            to_symbol(name),
+            Cat.create(*exprs),
+            is_additional_cat,
+            is_additional_alt,
+            metadata=metadata,
         )
 
 

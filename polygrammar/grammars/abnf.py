@@ -303,12 +303,12 @@ class AbnfVisitor(Visitor):
 
     def visit_case_sensitive_string(self, *args):
         _, arg = args
-        arg = String(arg).with_meta("case_sensitive")
+        arg = String(arg).set_meta("case_sensitive")
         return arg
 
     def visit_case_insensitive_string(self, *args):
         arg = String(args[-1])
-        arg = arg.with_meta("case_insensitive")
+        arg = arg.set_meta("case_insensitive")
         return arg
 
     def visit_quoted_string(self, token):

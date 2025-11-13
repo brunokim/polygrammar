@@ -235,11 +235,11 @@ class LispVisitor(Visitor):
     def add_annotation(self, v, annotation):
         match annotation:
             case Symbol(name):
-                return v.with_meta(name)
+                return v.set_meta(name)
             case [Symbol(name), String(value)]:
-                return v.with_meta(name, value)
+                return v.set_meta(name, value)
             case [Symbol(name), str() as value]:
-                return v.with_meta(name, value)
+                return v.set_meta(name, value)
             case _:
                 raise ValueError(f"invalid annotation {annotation}")
 

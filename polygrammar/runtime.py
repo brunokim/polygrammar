@@ -132,11 +132,11 @@ class Runtime:
 
 def ignored_rule_starts_with_underscore(name, expr):
     if name[0] == "_":
-        return expr.with_meta("ignore")
+        return expr.set_meta("ignore")
     return expr
 
 
 def token_rule_starts_with_uppercase(name, expr):
     if name[0].isupper():
-        return expr.with_meta("token")
+        return expr.set_meta("token")
     return expr
