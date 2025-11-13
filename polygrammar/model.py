@@ -60,17 +60,6 @@ def to_symbol(x):
 
 @frozen
 class Node:
-    @property
-    def children(self):
-        return ()
-
-    @property
-    def attributes(self):
-        return {}
-
-
-@frozen
-class Expr(Node):
     metadata: Mapping[str, str | None] = field(
         kw_only=True,
         eq=False,
@@ -80,11 +69,24 @@ class Expr(Node):
         validator=deep_mapping(instance_of(str), optional(instance_of(str))),
     )
 
+    @property
+    def children(self):
+        return ()
+
+    @property
+    def attributes(self):
+        return {}
+
     def with_meta(self, name, value=None):
         return evolve(self, metadata=self.metadata.set(name, value))
 
     def has_meta(self, *names: str) -> bool:
         return any(name in self.metadata for name in names)
+
+
+@frozen
+class Expr(Node):
+    pass
 
 
 @frozen

@@ -96,7 +96,7 @@ def preserve_metadata(f):
     return wrapper
 
 
-def inline_rules(rule_map, has_visitor_method):
+def inline_rules(rule_map, method_map):
     seen = set()
     new_rules = {}
 
@@ -115,11 +115,7 @@ def inline_rules(rule_map, has_visitor_method):
             return expr
         seen.add(name)
         base_expr = rule_map[name]
-        if (
-            name not in has_visitor_method
-            or is_token(base_expr)
-            or is_ignored(base_expr)
-        ):
+        if name not in method_map or is_token(base_expr) or is_ignored(base_expr):
             # Can't inline elements of rule that has a visitor method,
             # because this may change the number of elements passed to it.
             #
@@ -237,8 +233,8 @@ def remove_empty(rule_map):
     return {name: transform(expr, f) for name, expr in rule_map.items()}
 
 
-def optimize(rule_map, has_visitor_method):
-    rule_map = inline_rules(rule_map, has_visitor_method)
+def optimize(rule_map, method_map):
+    rule_map = inline_rules(rule_map, method_map)
     rule_map = string_to_charset(rule_map)
     rule_map = coalesce_charsets(rule_map)
     rule_map = remove_empty(rule_map)
