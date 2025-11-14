@@ -3,7 +3,6 @@ from textwrap import dedent
 import pytest
 
 from polygrammar.grammars.ebnf import EBNF_GRAMMAR, parse_ebnf, to_ebnf
-from polygrammar.grammars.lisp import parse_lisp_grammar
 from polygrammar.model import *
 from polygrammar.optimizer import (
     coalesce_charsets,
@@ -12,6 +11,7 @@ from polygrammar.optimizer import (
     string_to_charset,
 )
 from polygrammar.runtime import build_rule_map
+from polygrammar.runtime_model import node_to_rulemap_transform
 
 
 @pytest.mark.parametrize(
@@ -43,32 +43,18 @@ def test_inline_rules(grammar, has_visitor, output):
     assert inline_rules(rule_map, has_visitor) == want
 
 
-def test_string_to_charset():
-    rule_map = build_rule_map(
-        parse_lisp_grammar(
-            """
-            (grammar (rule s
-                "A"
-                #i "b"
-                #s "C"
-                #i "/"
-                "efg"))
-            """
-        )
-    )
-    want = build_rule_map(
-        parse_lisp_grammar(
-            """
-            (grammar (rule s
-                (charset "A")
-                (charset "b" "B")
-                (charset "C")
-                (charset "/")
-                "efg"))
-            """
-        )
-    )
-    assert string_to_charset(rule_map) == want
+@pytest.mark.parametrize(
+    "expr, want",
+    [
+        (String("A"), Charset.create(Char("A"))),
+        (String("b").set_meta("i"), Charset.create(Char("b"), Char("B"))),
+        (String("C").set_meta("s"), Charset.create(Char("C"))),
+        (String("/").set_meta("i"), Charset.create(Char("/"))),
+        (String("efg"), String("efg")),
+    ],
+)
+def test_string_to_charset(expr, want):
+    assert string_to_charset(expr) == want
 
 
 @pytest.mark.parametrize(
@@ -94,7 +80,8 @@ def test_string_to_charset():
 def test_coalesce_charsets(grammar, want):
     rule_map = build_rule_map(parse_ebnf(grammar))
     want = build_rule_map(parse_ebnf(want))
-    assert coalesce_charsets(rule_map) == want
+    rulemap_transform = node_to_rulemap_transform(coalesce_charsets)
+    assert rulemap_transform(rule_map, {}) == want
 
 
 @pytest.mark.parametrize(

@@ -1,5 +1,5 @@
 import re
-from collections.abc import Mapping
+from typing import Any, Mapping, Self
 
 from attrs import evolve, field, frozen
 from attrs.validators import (
@@ -71,17 +71,17 @@ class Node:
     )
 
     @property
-    def children(self):
+    def children(self) -> tuple["Node", ...]:
         return ()
 
     @property
-    def attributes(self):
+    def attributes(self) -> dict[str, Any]:
         return {}
 
-    def set_meta(self, name, value=None):
+    def set_meta(self, name, value=None) -> Self:
         return evolve(self, metadata=self.metadata.set(name, value))
 
-    def update_meta(self, other):
+    def update_meta(self, other) -> Self:
         return evolve(self, metadata=self.metadata | other)
 
     def has_meta(self, *names: str) -> bool:

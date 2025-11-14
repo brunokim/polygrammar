@@ -1,5 +1,3 @@
-from functools import wraps
-
 from polygrammar.grammars.python_re_writer import to_python_re
 from polygrammar.model import *
 from polygrammar.model import (
@@ -11,6 +9,7 @@ from polygrammar.model import (
     symbols,
     transform,
 )
+from polygrammar.runtime_model import *
 
 
 def to_range(group):
@@ -84,17 +83,6 @@ def subtract_groups(base, diff):
     return results
 
 
-def preserve_metadata(f):
-    @wraps(f)
-    def wrapper(node):
-        result = f(node)
-        if isinstance(node, Expr):
-            result = result.update_meta(node.metadata)
-        return result
-
-    return wrapper
-
-
 def inline_rules(rule_map, method_map):
     seen = set()
     new_rules = {}
@@ -138,103 +126,95 @@ def inline_rules(rule_map, method_map):
     return new_rules
 
 
-def string_to_charset(rule_map):
-    @preserve_metadata
-    def f(expr):
-        if not isinstance(expr, String):
-            return expr
-        value = expr.value
-        if len(value) != 1:
-            return expr
-        if is_case_sensitive(expr):
-            return Charset.create(value)
-        if value.lower() != value.upper():
-            return Charset.create(value.lower(), value.upper())
+@preserve_metadata
+def string_to_charset(expr):
+    if not isinstance(expr, String):
+        return expr
+    value = expr.value
+    if len(value) != 1:
+        return expr
+    if is_case_sensitive(expr):
         return Charset.create(value)
-
-    return {name: transform(expr, f) for name, expr in rule_map.items()}
-
-
-def coalesce_charsets(rule_map):
-    @preserve_metadata
-    def f(expr):
-        match expr:
-            case Alt(exprs):
-                new_exprs = [exprs[0]]
-                for e in exprs[1:]:
-                    curr = new_exprs[-1]
-                    match curr, e:
-                        case Charset(g1), Charset(g2):
-                            different_token_status = is_token(curr) != is_token(e)
-                            different_ignored_status = is_ignored(curr) != is_ignored(e)
-                            if different_token_status or different_ignored_status:
-                                # Don't merge charsets with different token/ignored status.
-                                new_exprs.append(e)
-                            else:
-                                new_exprs[-1] = Charset.create(*add_groups(g1, g2))
-                        case _:
-                            new_exprs.append(e)
-                return Alt.create(*new_exprs)
-            case Diff(base, diff):
-                match base, diff:
-                    case Charset(g1), Charset(g2):
-                        return Charset.create(*subtract_groups(g1, g2))
-                    case _:
-                        return Diff(base, diff)
-            case _:
-                return expr
-
-    return {name: transform(expr, f) for name, expr in rule_map.items()}
+    if value.lower() != value.upper():
+        return Charset.create(value.lower(), value.upper())
+    return Charset.create(value)
 
 
-def convert_to_regexp(rule_map):
-    @preserve_metadata
-    def f(expr):
-        if symbols(expr) or diffs(expr) or ignored_exprs(expr):
-            # Not a regular expression.
+@preserve_metadata
+def coalesce_charsets(expr):
+    match expr:
+        case Alt(exprs):
+            new_exprs = [exprs[0]]
+            for e in exprs[1:]:
+                curr = new_exprs[-1]
+                if not (isinstance(curr, Charset) and isinstance(e, Charset)):
+                    new_exprs.append(e)
+                    continue
+
+                if is_token(curr) != is_token(e) or is_ignored(curr) != is_ignored(e):
+                    # Don't merge charsets with different token/ignored status.
+                    new_exprs.append(e)
+                    continue
+
+                # Replace curr charset with charset union.
+                new_exprs[-1] = Charset.create(*add_groups(curr.groups, e.groups))
+            return Alt.create(*new_exprs)
+        case Diff(base, diff):
+            match base, diff:
+                case Charset(g1), Charset(g2):
+                    return Charset.create(*subtract_groups(g1, g2))
+                case _:
+                    return Diff(base, diff)
+        case _:
             return expr
-        if not (is_token(expr) or is_ignored(expr)):
-            # Regexp may change number of output tokens.
-            return expr
-        return Regexp(to_python_re(expr))
-
-    return {name: f(expr) for name, expr in rule_map.items()}
 
 
-def remove_empty(rule_map):
-    @preserve_metadata
-    def f(expr):
-        match expr:
-            case (
-                Optional(Empty())
-                | ZeroOrMore(Empty())
-                | OneOrMore(Empty())
-                | Repeat(Empty())
-                | Diff(Empty(), _)
-            ):
-                return Empty()
-            case Alt(exprs):
-                if not any(isinstance(e, Empty) for e in exprs):
-                    return expr
-                new_exprs = [e for e in exprs if not isinstance(e, Empty)]
-                return Optional(Alt.create(*new_exprs))
-            case Cat(exprs):
-                if not any(isinstance(e, Empty) for e in exprs):
-                    return expr
-                new_exprs = [e for e in exprs if not isinstance(e, Empty)]
-                return Cat.create(*new_exprs)
-            case Diff(base, Empty()):
-                return base
-            case _:
+@preserve_metadata
+def convert_to_regexp(expr):
+    if symbols(expr) or diffs(expr) or ignored_exprs(expr):
+        # Not a regular expression.
+        return expr
+    if not (is_token(expr) or is_ignored(expr)):
+        # Regexp may change number of output tokens.
+        return expr
+    return Regexp(to_python_re(expr))
+
+
+@preserve_metadata
+def remove_empty(expr):
+    match expr:
+        case (
+            Optional(Empty())
+            | ZeroOrMore(Empty())
+            | OneOrMore(Empty())
+            | Repeat(Empty())
+            | Diff(Empty(), _)
+        ):
+            return Empty()
+        case Alt(exprs):
+            if not any(isinstance(e, Empty) for e in exprs):
                 return expr
+            new_exprs = [e for e in exprs if not isinstance(e, Empty)]
+            return Optional(Alt.create(*new_exprs))
+        case Cat(exprs):
+            if not any(isinstance(e, Empty) for e in exprs):
+                return expr
+            new_exprs = [e for e in exprs if not isinstance(e, Empty)]
+            return Cat.create(*new_exprs)
+        case Diff(base, Empty()):
+            return base
+        case _:
+            return expr
 
-    return {name: transform(expr, f) for name, expr in rule_map.items()}
 
-
-def optimize(rule_map, method_map):
-    rule_map = inline_rules(rule_map, method_map)
-    rule_map = string_to_charset(rule_map)
-    rule_map = coalesce_charsets(rule_map)
-    rule_map = remove_empty(rule_map)
-    rule_map = convert_to_regexp(rule_map)
-    return rule_map
+optimize = compose_rulemap_transforms(
+    inline_rules,
+    node_to_rulemap_transform(
+        compose_node_transforms(
+            string_to_charset,
+            coalesce_charsets,
+            remove_empty,
+        )
+    ),
+    rule_expr_to_rulemap_transform(convert_to_regexp),
+)
