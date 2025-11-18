@@ -1,7 +1,7 @@
 from polygrammar.grammars.python_re_writer import to_python_re
 from polygrammar.model import *
 from polygrammar.model import is_case_sensitive, is_ignored, is_token
-from polygrammar.runtime_model import *
+from polygrammar.transforms import *
 
 
 def to_range(group):

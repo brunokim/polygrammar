@@ -7,7 +7,7 @@ from attrs.validators import deep_mapping, instance_of, is_callable
 
 from polygrammar.model import Alt, Cat, Expr, Grammar, Visitor
 from polygrammar.optimizer import optimize
-from polygrammar.runtime_model import symbols
+from polygrammar.transforms import symbols
 
 BASE_OPTIONS = {"ignore", "warn", "error"}
 

@@ -11,7 +11,7 @@ from polygrammar.optimizer import (
     string_to_charset,
 )
 from polygrammar.runtime import build_rule_map
-from polygrammar.runtime_model import expr_to_rulemap_transform
+from polygrammar.transforms import expr_to_rulemap_transform
 
 
 @pytest.mark.parametrize(
