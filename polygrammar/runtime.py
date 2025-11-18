@@ -1,13 +1,18 @@
 import inspect
 import warnings
-from typing import Callable
+from typing import Sequence
 
 from attrs import field, frozen
 from attrs.validators import deep_mapping, instance_of, is_callable
+from frozendict import frozendict
 
-from polygrammar.model import Alt, Cat, Expr, Grammar, Visitor
+from polygrammar.model import Alt, Cat, Expr, Grammar, MethodMap, RuleMap, Visitor
 from polygrammar.optimizer import optimize
-from polygrammar.transforms import *
+from polygrammar.transforms import (
+    compose_rulemap_transforms,
+    rule_to_rulemap_transform,
+    symbols,
+)
 
 BASE_OPTIONS = {"ignore", "warn", "error"}
 
@@ -24,7 +29,7 @@ def handle_problem(msg: str, option: str):
 DUPLICATE_OPTIONS = {"overrides", "overloads"} | BASE_OPTIONS
 
 
-def build_rule_map(grammar, on_duplicate_rule="error"):
+def build_rule_map(grammar: Grammar, on_duplicate_rule="error") -> RuleMap:
     if on_duplicate_rule not in DUPLICATE_OPTIONS:
         raise ValueError(
             "on_duplicate_rule must be one of {', '.join(DUPLICATE_OPTIONS)}"
@@ -62,7 +67,9 @@ def build_rule_map(grammar, on_duplicate_rule="error"):
     return rule_map
 
 
-def build_method_map(rule_names, visitor, on_unused_visitor_methods="error"):
+def build_method_map(
+    rule_names: Sequence[str], visitor: Visitor, on_unused_visitor_methods="error"
+) -> MethodMap:
     if on_unused_visitor_methods not in BASE_OPTIONS:
         raise ValueError(
             "on_unused_visitor_methods must be one of {', '.join(BASE_OPTIONS)}"
@@ -91,11 +98,12 @@ def build_method_map(rule_names, visitor, on_unused_visitor_methods="error"):
 
 @frozen
 class Runtime:
-    rule_map: dict[str, Expr] = field(
-        validator=deep_mapping(instance_of(str), instance_of(Expr))
+    rule_map: RuleMap = field(
+        converter=frozendict,
+        validator=deep_mapping(instance_of(str), instance_of(Expr)),
     )
-    method_map: dict[str, Callable] = field(
-        validator=deep_mapping(instance_of(str), is_callable())
+    method_map: MethodMap = field(
+        converter=frozendict, validator=deep_mapping(instance_of(str), is_callable())
     )
 
     @classmethod

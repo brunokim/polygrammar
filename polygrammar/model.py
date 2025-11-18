@@ -404,5 +404,5 @@ class Visitor:
 
 # Runtime model
 
-RuleMap = dict[str, Expr]
-MethodMap = dict[str, Callable]
+RuleMap = Mapping[str, Expr]
+MethodMap = Mapping[str, Callable]
