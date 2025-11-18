@@ -7,7 +7,7 @@ from attrs.validators import deep_mapping, instance_of, is_callable
 
 from polygrammar.model import Alt, Cat, Expr, Grammar, Visitor
 from polygrammar.optimizer import optimize
-from polygrammar.transforms import symbols
+from polygrammar.transforms import *
 
 BASE_OPTIONS = {"ignore", "warn", "error"}
 
@@ -105,28 +105,24 @@ class Runtime:
         visitor: Visitor = None,
         on_duplicate_rule: str = "error",
         on_unused_visitor_methods: str = "error",
-        rule_transforms=None,
-        rule_map_transforms=None,
+        rulemap_transforms=None,
     ):
         if visitor is None:
             visitor = Visitor()
-        if rule_transforms is None:
-            rule_transforms = [
-                ignored_rule_starts_with_underscore,
-                token_rule_starts_with_uppercase,
+        if rulemap_transforms is None:
+            rulemap_transforms = [
+                rule_to_rulemap_transform(ignored_rule_starts_with_underscore),
+                rule_to_rulemap_transform(token_rule_starts_with_uppercase),
+                optimize,
             ]
-        if rule_map_transforms is None:
-            rule_map_transforms = [optimize]
 
         rule_map = build_rule_map(grammar, on_duplicate_rule)
         method_map = build_method_map(
             rule_map.keys(), visitor, on_unused_visitor_methods
         )
 
-        for f in rule_transforms:
-            rule_map = {name: f(name, expr) for name, expr in rule_map.items()}
-        for f in rule_map_transforms:
-            rule_map = f(rule_map, method_map.keys())
+        rulemap_transform = compose_rulemap_transforms(*rulemap_transforms)
+        rule_map = rulemap_transform(rule_map, method_map)
 
         return cls(rule_map=rule_map, method_map=method_map)
 
