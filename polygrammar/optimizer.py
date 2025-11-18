@@ -1,14 +1,6 @@
 from polygrammar.grammars.python_re_writer import to_python_re
 from polygrammar.model import *
-from polygrammar.model import (
-    diffs,
-    ignored_exprs,
-    is_case_sensitive,
-    is_ignored,
-    is_token,
-    symbols,
-    transform,
-)
+from polygrammar.model import is_case_sensitive, is_ignored, is_token
 from polygrammar.runtime_model import *
 
 
@@ -111,7 +103,7 @@ def inline_rules(rule_map, method_map):
             # to the visitor method.
             # Likewise, ignored rules can't have visitors, so no visitor method
             # would be called.
-            expr = transform(base_expr, inline)
+            expr = tree_transform(base_expr, inline)
 
             # Copy metadata
             expr = expr.update_meta(base_expr.metadata)
@@ -171,7 +163,7 @@ def coalesce_charsets(expr):
 
 @preserve_metadata
 def convert_to_regexp(expr):
-    if symbols(expr) or diffs(expr) or ignored_exprs(expr):
+    if has_inner_node(expr, lambda x: isinstance(x, (Symbol, Diff)) or is_ignored(x)):
         # Not a regular expression.
         return expr
     if not (is_token(expr) or is_ignored(expr)):
@@ -209,12 +201,12 @@ def remove_empty(expr):
 
 optimize = compose_rulemap_transforms(
     inline_rules,
-    node_to_rulemap_transform(
+    expr_to_rulemap_transform(
         compose_node_transforms(
             string_to_charset,
             coalesce_charsets,
             remove_empty,
         )
     ),
-    rule_expr_to_rulemap_transform(convert_to_regexp),
+    expr_to_rulemap_transform(convert_to_regexp, order="root"),
 )

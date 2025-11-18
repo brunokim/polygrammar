@@ -11,7 +11,7 @@ from polygrammar.optimizer import (
     string_to_charset,
 )
 from polygrammar.runtime import build_rule_map
-from polygrammar.runtime_model import node_to_rulemap_transform
+from polygrammar.runtime_model import expr_to_rulemap_transform
 
 
 @pytest.mark.parametrize(
@@ -80,7 +80,7 @@ def test_string_to_charset(expr, want):
 def test_coalesce_charsets(grammar, want):
     rule_map = build_rule_map(parse_ebnf(grammar))
     want = build_rule_map(parse_ebnf(want))
-    rulemap_transform = node_to_rulemap_transform(coalesce_charsets)
+    rulemap_transform = expr_to_rulemap_transform(coalesce_charsets)
     assert rulemap_transform(rule_map, {}) == want
 
 

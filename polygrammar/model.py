@@ -1,5 +1,5 @@
 import re
-from typing import Any, Mapping, Self
+from typing import Any, Callable, Mapping, Self
 
 from attrs import evolve, field, frozen
 from attrs.validators import (
@@ -36,6 +36,8 @@ __all__ = [
     "Rule",
     "Grammar",
     "Visitor",
+    "RuleMap",
+    "MethodMap",
 ]
 
 
@@ -373,48 +375,6 @@ class Grammar(Node):
         return cls(rules)
 
 
-# Recursive walk
-
-
-def walk(node, f):
-    for child in node.children:
-        yield from walk(child, f)
-    yield from f(node)
-
-
-def transform(node, f):
-    if not node.children:
-        return f(node)
-    cls = type(node)
-    children = (transform(c, f) for c in node.children)
-    x = cls.create(*children, metadata=node.metadata, **node.attributes)
-    return f(x)
-
-
-def symbols(e: Expr):
-    def f(e):
-        if isinstance(e, Symbol):
-            yield e.name
-
-    return set(walk(e, f))
-
-
-def diffs(e: Expr):
-    def f(e):
-        if isinstance(e, Diff):
-            yield e.name
-
-    return set(walk(e, f))
-
-
-def ignored_exprs(e: Expr):
-    def f(e):
-        if isinstance(e, Expr) and is_ignored(e):
-            yield e
-
-    return set(walk(e, f))
-
-
 # Metadata predicates
 
 
@@ -440,3 +400,9 @@ def is_case_sensitive(expr):
 class Visitor:
     def visit(self, name, *args):
         return (name,) + args
+
+
+# Runtime model
+
+RuleMap = dict[str, Expr]
+MethodMap = dict[str, Callable]

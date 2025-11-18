@@ -5,8 +5,9 @@ from typing import Callable
 from attrs import field, frozen
 from attrs.validators import deep_mapping, instance_of, is_callable
 
-from polygrammar.model import Alt, Cat, Expr, Grammar, Visitor, symbols
+from polygrammar.model import Alt, Cat, Expr, Grammar, Visitor
 from polygrammar.optimizer import optimize
+from polygrammar.runtime_model import symbols
 
 BASE_OPTIONS = {"ignore", "warn", "error"}
 
