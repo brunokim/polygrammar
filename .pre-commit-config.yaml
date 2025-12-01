@@ -27,12 +27,18 @@ repos:
     hooks:
       - id: pytest
         name: pytest
+        entry: pytest
+        language: system
+        pass_filenames: false
+        stages: [pre-push, pre-merge-commit]
+      - id: pytest_slow
+        name: pytest (property-based)
         entry: >
           pytest
           -vv
           --hypothesis-show-statistics
           --hypothesis-profile=pre-push
-          -m 'hypothesis or not hypothesis'
+          -m 'hypothesis'
         language: system
         pass_filenames: false
         always_run: true
