@@ -1,7 +1,7 @@
 import re
 from typing import Any, Callable, Mapping, Self
 
-from attrs import evolve, field, frozen
+from attrs import define, evolve, field, frozen
 from attrs.validators import (
     and_,
     deep_iterable,
@@ -36,6 +36,7 @@ __all__ = [
     "Directive",
     "Rule",
     "Grammar",
+    "Catalog",
     "Visitor",
     "RuleMap",
     "MethodMap",
@@ -391,6 +392,33 @@ class Grammar(Node):
         for k, v in kwargs.items():
             rules.append(Rule.create(k, v))
         return cls(rules)
+
+
+@define
+class Catalog:
+    grammars: list[Grammar] = field(converter=list, factory=list)
+    _idx: dict[str, Grammar] = field(init=False, factory=dict)
+
+    def __attrs_post_init__(self):
+        for g in self.grammars:
+            self._index_grammar(g)
+
+    def _index_grammar(self, g):
+        if name := g.metadata.get("name"):
+            if name in self._idx:
+                raise ValueError(f"duplicate grammar name: {name!r}")
+            self._idx[name] = g
+
+    def add_grammar(self, grammar):
+        self.grammars.append(grammar)
+        self._index_grammar(grammar)
+
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            return self.grammars[key]
+        if isinstance(key, str):
+            return self._idx[key]
+        raise KeyError(key)
 
 
 # Metadata predicates

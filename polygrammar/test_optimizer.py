@@ -10,7 +10,7 @@ from polygrammar.optimizer import (
     optimize,
     string_to_charset,
 )
-from polygrammar.runtime import build_rule_map
+from polygrammar.runtime import Runtime
 from polygrammar.transforms import expr_to_rulemap_transform
 
 
@@ -38,8 +38,8 @@ from polygrammar.transforms import expr_to_rulemap_transform
     ],
 )
 def test_inline_rules(grammar, has_visitor, output):
-    rule_map = build_rule_map(parse_ebnf(grammar))
-    want = build_rule_map(parse_ebnf(output))
+    rule_map = Runtime.build_rule_map(parse_ebnf(grammar))
+    want = Runtime.build_rule_map(parse_ebnf(output))
     assert inline_rules(rule_map, has_visitor) == want
 
 
@@ -78,8 +78,8 @@ def test_string_to_charset(expr, want):
     ],
 )
 def test_coalesce_charsets(grammar, want):
-    rule_map = build_rule_map(parse_ebnf(grammar))
-    want = build_rule_map(parse_ebnf(want))
+    rule_map = Runtime.build_rule_map(parse_ebnf(grammar))
+    want = Runtime.build_rule_map(parse_ebnf(want))
     rulemap_transform = expr_to_rulemap_transform(coalesce_charsets)
     assert rulemap_transform(rule_map, {}) == want
 
@@ -120,14 +120,14 @@ def test_coalesce_charsets(grammar, want):
     ],
 )
 def test_optimizer(rule_map, want):
-    rule_map = build_rule_map(parse_ebnf(rule_map))
-    want = build_rule_map(parse_ebnf(want))
+    rule_map = Runtime.build_rule_map(parse_ebnf(rule_map))
+    want = Runtime.build_rule_map(parse_ebnf(want))
     assert optimize(rule_map, {}) == want
 
 
 def test_optimize_ebnf():
     rule_map = optimize(
-        build_rule_map(EBNF_GRAMMAR),
+        Runtime.build_rule_map(EBNF_GRAMMAR),
         {
             "grammar",
             "rule",

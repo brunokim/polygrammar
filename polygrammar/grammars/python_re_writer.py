@@ -106,6 +106,11 @@ def to_python_re(self: String) -> str:
 
 
 @multimethod
+def to_python_re(self: Regexp) -> str:
+    return self.pattern
+
+
+@multimethod
 def to_python_re(self: Char) -> str:
     ch = self.char
     return CHAR_ESCAPE.serialize(ch)

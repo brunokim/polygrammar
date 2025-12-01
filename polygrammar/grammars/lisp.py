@@ -10,7 +10,7 @@ from polygrammar.grammars.escapes import (
 from polygrammar.model import *
 from polygrammar.recursive_parser import Parser
 
-__all__ = ["parse_lisp_data", "parse_lisp_grammar", "LISP_GRAMMAR"]
+__all__ = ["parse_lisp_data", "parse_lisp_grammar", "parse_catalog", "LISP_GRAMMAR"]
 
 
 # Escapes
@@ -273,3 +273,9 @@ def parse_lisp_data(text):
     tree, _ = DATA_PARSER.first_parse(text)
     (values,) = tree
     return values
+
+
+def parse_catalog(text):
+    tree, _ = GRAMMAR_PARSER.first_parse(text)
+    (grammars,) = tree
+    return Catalog(grammars)

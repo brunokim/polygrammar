@@ -1,16 +1,19 @@
-from polygrammar.grammars.lisp import parse_lisp_grammar
+from polygrammar.grammars.lisp import parse_catalog
+from polygrammar.model import *
+from polygrammar.recursive_parser import Parser
+
+__all__ = ["parse_lark", "LARK_CATALOG"]
 
 # Reference: https://github.com/lark-parser/lark/blob/master/lark/grammars/lark.lark
-LARK_GRAMMAR = parse_lisp_grammar(
+LARK_CATALOG = parse_catalog(
     r'''
+    #(keep_literals false)
     (grammar
-      (directive discard_literals)
-
       (rule start (* (? _item) _NL) (? _item))
       (rule _item (alt rule token statement))
 
       (rule rule RULE rule_params (? priority) ":" expansions)
-      (rule rule TOKEN token_params (? priority) ":" expansions)
+      (rule token TOKEN token_params (? priority) ":" expansions)
       (rule rule_params #maybe (? "{" RULE (* "," RULE) "}"))
       (rule token_params #maybe (? "{" TOKEN (* "," TOKEN) "}"))
 
@@ -60,24 +63,23 @@ LARK_GRAMMAR = parse_lisp_grammar(
       (rule RULE (regexp "!?[_?]?[a-z][_a-z0-9]*"))
       (rule TOKEN (regexp "_?[A-Z][_A-Z0-9]*"))
       (rule STRING _STRING (? "i"))
-      (rule REGEXP (regexp "\/(?!\/)(\\\/|\\\\|[^\/])*?\/[imslux]*"))
+      (rule REGEXP (regexp "/(?!/)(\\/|\\\\|[^/])*?/[imslux]*"))
       (rule _NL (regexp "(\r?\n)+\s*"))
 
-      (directive import "common" "ESCAPED_STRING" "_STRING")
-      (directive import "common" "SIGNED_INT" "NUMBER")
-      (directive import "common" "WS_INLINE")
+      (directive import common ESCAPED_STRING _STRING)
+      (directive import common SIGNED_INT NUMBER)
+      (directive import common WS_INLINE)
 
       (rule COMMENT (alt
         (cat (regexp "\s*") "//" (* (regexp "[^\n]")))
         (cat (regexp "\s*") "#" (regexp "[^\n]"))))
 
-      (directive ignore "WS_INLINE")
-      (directive ignore "COMMENT")
+      (directive ignore WS_INLINE)
+      (directive ignore COMMENT)
     )
 
+    #(name common)
     (grammar
-      (directive name "common")
-
       ;
       ; Numbers
       ;
@@ -118,7 +120,7 @@ LARK_GRAMMAR = parse_lisp_grammar(
 
       (rule LCASE_LETTER (charset (char_range "a" "z")))
       (rule UCASE_LETTER (charset (char_range "A" "Z")))
-      (rule LETTER (alt UCASE_LETTER | LCASE_LETTER))
+      (rule LETTER (alt UCASE_LETTER LCASE_LETTER))
       (rule WORD (+ LETTER))
 
       (rule CNAME (alt "_" LETTER) (* (alt "_" LETTER DIGIT)))
@@ -142,3 +144,34 @@ LARK_GRAMMAR = parse_lisp_grammar(
     )
     '''
 )
+
+
+class LarkVisitor(Visitor):
+    def visit_start(self, *rules):
+        return Grammar(rules)
+
+    def visit_rule(self, *args):
+        match args:
+            case [name, None, expansions]:
+                return Rule(name, expansions)
+            case _:
+                raise NotImplementedError(f"{args}")
+
+    def visit_REGEXP(self, token):
+        start = 1
+        assert token[:start] == "/"
+        end = token.rfind("/")
+        pattern = token[start:end]
+        flags = token[end + 1 :]
+        if flags:
+            pattern = f"(?{flags}:{pattern})"
+        return Regexp(pattern)
+
+
+PARSER = Parser.from_grammar(LARK_CATALOG[0], LarkVisitor(), catalog=LARK_CATALOG)
+
+
+def parse_lark(text):
+    tree, _ = PARSER.first_parse(text)
+    (grammar,) = tree
+    return grammar
