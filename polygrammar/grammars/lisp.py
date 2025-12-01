@@ -51,6 +51,7 @@ type_names = {
     Charset: ["charset"],
     Diff: ["diff", "-"],
     CharsetDiff: ["charset_diff"],
+    Directive: ["directive"],
     Rule: ["rule"],
     Grammar: ["grammar"],
 }
@@ -236,7 +237,7 @@ class LispVisitor(Visitor):
         match annotation:
             case Symbol(name):
                 return v.set_meta(name)
-            case [Symbol(name), String(value)]:
+            case [Symbol(name), String(value) | Symbol(value)]:
                 return v.set_meta(name, value)
             case [Symbol(name), str() as value]:
                 return v.set_meta(name, value)
@@ -264,7 +265,7 @@ GRAMMAR_PARSER = Parser.from_grammar(LISP_GRAMMAR, LispGrammarVisitor())
 def parse_lisp_grammar(text):
     tree, _ = GRAMMAR_PARSER.first_parse(text)
     (values,) = tree
-    (grammar,) = values
+    (grammar, *_) = values
     return grammar
 
 

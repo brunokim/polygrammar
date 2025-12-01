@@ -33,6 +33,7 @@ __all__ = [
     "Charset",
     "Diff",
     "CharsetDiff",
+    "Directive",
     "Rule",
     "Grammar",
     "Visitor",
@@ -358,9 +359,26 @@ class Rule(Node):
 
 
 @frozen
+class Directive(Node):
+    name: Symbol = field(validator=instance_of(Symbol))
+    args: tuple[Expr, ...] = field(
+        converter=tuple, validator=deep_iterable(instance_of(Expr))
+    )
+
+    @property
+    def children(self):
+        return (self.name,) + self.args
+
+    @classmethod
+    def create(cls, name: str | Symbol, *args: Expr | str) -> "Directive":
+        return cls(to_symbol(name), (to_string(arg) for arg in args))
+
+
+@frozen
 class Grammar(Node):
-    rules: tuple[Rule, ...] = field(
-        converter=tuple, validator=[min_len(1), deep_iterable(instance_of(Rule))]
+    rules: tuple[Rule | Directive, ...] = field(
+        converter=tuple,
+        validator=[min_len(1), deep_iterable(instance_of((Rule, Directive)))],
     )
 
     @property
