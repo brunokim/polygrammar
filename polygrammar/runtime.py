@@ -23,7 +23,7 @@ def handle_problem(msg: str, option: str):
     elif option == "error":
         raise ValueError(msg)
     else:
-        assert option == "ignore"
+        assert option == "ignore", f"option {option!r} not supported"
 
 
 DUPLICATE_OPTIONS = {"overrides", "overloads"} | BASE_OPTIONS

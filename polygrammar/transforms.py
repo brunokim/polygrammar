@@ -18,7 +18,7 @@ __all__ = [
 
 # Transformation types
 
-NodeTransform = Callable[Node, Node]
+NodeTransform = Callable[[Node], Node]
 RuleTransform = Callable[[str, Expr], Expr]
 RulemapTransform = Callable[[RuleMap, MethodMap], RuleMap]
 
@@ -27,22 +27,14 @@ RulemapTransform = Callable[[RuleMap, MethodMap], RuleMap]
 
 
 def tree_transform(node: Node, f: NodeTransform, *, order: str = "post") -> Node:
-    if order == "root":
+    if order == "root" or not node.children:
         return f(node)
+    cls = type(node)
     if order == "post":
-        if not node.children:
-            return f(node)
-        cls = type(node)
         children = (tree_transform(c, f, order=order) for c in node.children)
         x = cls.create(*children, metadata=node.metadata, **node.attributes)
         return f(x)
     raise NotImplementedError(f"tree traversal order not implemented: {order!r}")
-
-
-def walk(node, f):
-    for child in node.children:
-        yield from walk(child, f)
-    yield from f(node)
 
 
 # Higher-order function composition
@@ -117,7 +109,7 @@ def symbols(node: Node):
     return seen
 
 
-def has_inner_node(node: Node, pred: Callable[Node, bool]):
+def has_inner_node(node: Node, pred: Callable[[Node], bool]):
     found = False
 
     def walk(x):
